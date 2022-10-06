@@ -1,0 +1,27 @@
+---
+title: "Statistical Computing 1 - Portfolio 1"
+author: "Sam Bowyer"
+date: "2022-10-06"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Week 1 - Reproducibility
+
+### Reproducible Analysis
+
+### Literate Programming (e.g. RMarkdown)
+
+
+## Week 2 - Packages
+
+### Projects & Packages
+
+### Git & Github
+
+#### Github Actions
