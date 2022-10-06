@@ -1,0 +1,73 @@
+---
+title: "test"
+author: "sam"
+date: "2022-09-29"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+<!-- --- -->
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+n = 1000
+xs = rnorm(n)
+ys = rnorm(n)
+par(mfrow=c(1,2))
+plot(xs, ys, asp=1)
+smoothScatter(xs, ys)
+```
+
+## 2
+A line
+
+```{r}
+m = 4
+xs = 1:20
+ys = m*xs + rnorm(length(xs))
+plot(xs, ys)
+print(123)
+```
+
+with the data `r ys`
+
+## Normal dist test
+```{r}
+par(mfrow = c(2,1))
+plot(function(x) dnorm(x, log = TRUE), -60, 50,
+     main = "log { Normal density }")
+curve(log(dnorm(x)), from = -20, to=4, add = TRUE, col = "red", lwd = 2)
+mtext("dnorm(x, log=TRUE)", adj = 0)
+mtext("log(dnorm(x))", col = "red", adj = 1)
+
+plot(function(x) pnorm(x, log.p = TRUE), -50, 10,
+     main = "log { Normal Cumulative }")
+curve(log(pnorm(x)), add = TRUE, col = "red", lwd = 2)
+mtext("pnorm(x, log=TRUE)", adj = 0)
+mtext("log(pnorm(x))", col = "red", adj = 1)
+```
+
+## Project Euler Problem 16
+What is the sum of the digits of the number $2^{1000}$?
+
+Lazy approach:
+```{r}
+x = 2^1000L
+y = 0
+x.str = strsplit(as.character(x), "")[[1]]
+print(x.str)
+for (z in x.str){
+  y = y + as.integer(z)
+}
+print(y)
+```
