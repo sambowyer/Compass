@@ -1,0 +1,219 @@
+---
+title: "Portfolio 3"
+author: "Sam Bowyer"
+date: "2022-10-13"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Vectorisation
+
+`R` is an interpreted language, so loops (particularly nested loops) can be very slow. Instead, it is often useful to use built-in vector operations, which tend to be written in C/C++ and hence are compiled and run much faster.
+
+As example consider the two functions below that both compute the minimum value that the sign function takes from elements in a vector:
+
+```{r}
+minsin1 <- function(x){
+  m = Inf
+  for (i in 1:length(x)){
+    if (sin(x[i]) < m){}
+      m = sin(x[i])
+  }
+  return (m)
+}
+
+minsin2 <-function(x) min(sin(x))
+```
+
+Then running these two functions on the same input, we find that the second, vectorised version runs much faster:
+
+```{r}
+x = 1:1e7
+system.time(minsin1(x))
+```
+
+```{r}
+system.time(minsin2(x))
+```
+
+Vectorisation is then particularly useful when we're working with matrices, or even higher dimensional arrays---more dimensions typically mean more nested loops in unvectorised code, greatly slowing things down. Consider the two functions below which sum the rows of a matrix before applying the previous `minsin` functions to the resulting vector.
+
+```{r}
+minsin_matrix1 <- function(X){
+  m = Inf
+  for (i in 1:nrow(X)){
+    total = 0
+    for (j in 1:ncol(X)){
+      total = total + X[i,j]
+    }
+    if (sin(total) < m){
+      m = sin(total)
+    }
+  }
+  return (m)
+}
+
+minsin_matrix2 <- function(X) min(sin(rowSums(X)))
+```
+
+Again, by running these functions on the same data we find that vectorisation has drastically sped up execution.
+
+```{r}
+X = matrix(1:1e8, 1e3, 1e5)
+system.time(minsin_matrix1(X))
+```
+
+```{r}
+system.time(minsin_matrix2(X))
+```
+
+## Useful Functions
+
+`R` includes a variety of functions which help us perform operations on vectors.
+
+### `apply`
+
+`apply(X, MARGIN, FUN, ...)`: applies the function `FUN` to an array of dimension 2 or more using the dimensions given in the list `MARGIN` (in which `1` represents rows, `2` represents columns, `c(1,2)` represents both, etc.).
+
+```{r}
+x <- matrix(1:12, 3, 4)
+print(x)
+apply(x, c(1,2), minsin2)
+```
+
+```{r}
+apply(x, 1, minsin2)
+```
+
+```{r}
+apply(x, 2, minsin2)
+```
+
+For an example with a 3-dimensional array:
+
+```{r}
+x <- array(1:12, c(2, 3, 2))
+print(x)
+```
+
+```{r}
+apply(x, 3, sum)
+```
+
+```{r}
+apply(x, c(1,2), sum)
+```
+
+```{r}
+apply(x, c(2,3), sum)
+```
+
+```{r}
+apply(x, c(1,3), sum)
+```
+
+### `lapply`
+
+`lapply(X, FUN, ...)`: works like `apply` but can be used on vectors and lists, and also returns a list.
+
+```{r}
+lapply(1:4, sqrt)
+```
+
+```{r}
+x <- list(a=1:3, b=c(TRUE, TRUE, FALSE), c=2:-1)
+lapply(x, minsin2)
+```
+
+Note that in the following code execution we find that `lapply` is slower than both vectorised code and a `for` loop.
+
+```{r}
+func <- function(x) sqrt(x^2)
+func_lapply <- function(x) lapply(x, func)
+func_loop <- function(x){
+  out = rep(NA, length(x))
+  for (i in seq_len(length(x))){
+    out[i] = func(x[i])
+  }
+  return(out)
+}
+x = 1:1e7
+```
+
+```{r}
+system.time(func(x))
+```
+
+```{r}
+system.time(func_lapply(x))
+```
+
+```{r}
+system.time(func_loop(x))
+```
+
+### `sapply`
+
+`sapply(X, FUN, ...)`: works like `sapply` but simplifies the output before returning.
+
+```{r}
+sapply(1:4, sqrt)
+```
+
+```{r}
+x <- list(a=1:3, b=c(TRUE, TRUE, FALSE), c=2:-1)
+sapply(x, minsin2)
+```
+
+### `mapply`
+
+`mapply(FUN, ...)`: the (potentially multiple) arguments given as `...` are used to run the function `FUN`.
+
+```{r}
+mapply(sqrt, 1:4)
+```
+
+```{r}
+mapply(function(x,y,z) x * y + z, c(1, 10, 100), c(2,3,4), c(0, 1, 2))
+```
+
+
+### Map
+This works very similarly to `mapply`.
+```{r}
+Map(rep, 1:3, 4:6)
+```
+Though it is ever so slightly faster.
+```{r}
+system.time(Map(func, 1:1e7))
+```
+```{r}
+system.time(mapply(func, 1:1e7))
+```
+
+### Reduce
+`Reduce(FUN, X)` applies `FUN` to consecutive pairs of elements in a vector iteratively until a single element is left.
+```{r}
+Reduce(rep, 1:3)
+```
+Above, `Reduce` has first executed `rep(1,2)` to obtain the vector `c(1,1)` and has then executed `rep(c(1,1), 3)` to obtain the output.
+
+Below, `Reduce` is used to write the elements of a list as the digits in a number.
+```{r}
+Reduce(function(a,b) 10*a + b, 1:6)
+```
+
+### Filter
+`Filter(FUN, X)` removes any elements from the vector `X` who do not evaluate to `TRUE` under the function `FUN`.
+```{r}
+Filter(function(x) sqrt(x) %% 1 == 0, 1:30)
+```
+```{r}
+Filter(function(x) sqrt(x^2) == x, -10:10)
+```
+
+## Parallel Programming
+For large tasks we can distribute computation across multiple CPU cores in the hopes of a speed increase.

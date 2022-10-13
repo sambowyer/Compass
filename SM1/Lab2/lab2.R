@@ -1,7 +1,7 @@
 
 # Generate the data
 n = 200
-xs = seq(-1,3, length.out=n)
+xs = seq(-2,2, length.out=n)
 ys = exp(1.5*xs - 1) + rnorm(n, 0, 0.64)
 
 # # Choose default hyperparameters (max degree of feature transform, deg, and regularization coefficient, lambda)
@@ -171,6 +171,7 @@ phiX = phi(xs, deg)
 w = fit(phiX, ys, lambda)
 predYs = phiX %*% w
 variance = norm(ys - predYs)/(n-1)
+print(variance)
 
 # Find percentage of data points within 1 SD of prediction
 diffs = abs(predYs - ys) - sqrt(variance)
