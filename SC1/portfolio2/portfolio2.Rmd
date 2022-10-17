@@ -1,0 +1,18 @@
+---
+title: "Portfolio 2"
+author: "Sam Bowyer"
+date: "2022-10-17"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Week 2 - Packages
+
+### Projects & Packages
+
+### Git & Github
+
+#### Github Actions

@@ -17,11 +17,3 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Literate Programming (e.g. RMarkdown)
 
-
-## Week 2 - Packages
-
-### Projects & Packages
-
-### Git & Github
-
-#### Github Actions

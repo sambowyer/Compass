@@ -216,4 +216,77 @@ Filter(function(x) sqrt(x^2) == x, -10:10)
 ```
 
 ## Parallel Programming
-For large tasks we can distribute computation across multiple CPU cores in the hopes of a speed increase.
+For large tasks we can distribute computation across multiple CPU cores in the hopes of a speed increase (though this won't help if the task is slow for a non-CPU-related bottleneck,m such as within the task's use of memory, networking or I/O).
+
+We can check how many cores our CPU has by using the `parallel` package:
+```{r}
+library(parallel)
+num_cores <- detectCores()
+num_cores
+```
+
+Consider the function below which squares the square-root of each entry in a matrix:
+```{r}
+id <- function(X){
+  # return (apply(X, c(1,2), function(x) sqrt(x)**2))
+  #X_new = matrix(NA, nrow=nrow(X), ncol=ncol(X))
+  #for(i in 1:nrow(X)){
+  #  for(j in 1:ncol(X)){
+  #    X_new[i,j] = sqrt(X[i,j])**2
+  #  }
+  #}
+  #return(X_new)
+  return(sqrt(X)**2)
+}
+X = matrix(1:1e7, nrow=500, ncol=20000)
+system.time(lapply(X, id))
+```
+
+We can use the `mclapply()` function to run this function on multiple cores and see the difference in execution time varying the number of cores.
+```{r}
+# 2 Cores
+system.time(mclapply(X, id, mc.cores=2))
+```
+```{r}
+# 4 Cores
+system.time(mclapply(X, id, mc.cores=4))
+```
+```{r}
+# 8 Cores
+system.time(mclapply(X, id, mc.cores=8))
+```
+```{r}
+# 16 Cores
+system.time(mclapply(X, id, mc.cores=16))
+```
+
+Note that it is not necessarily true that using $n$ cores will result in an $n$-factor speed-up, in fact in general the gains tend to diminish as $n$ grows larger, and using too many cores may actually slow you down due to the time required for the core-allocation of computations to take place.
+
+### `forEach` and `doParallel`
+Another way we can use parallelisation is with the `doParallel` package, which can be used with the (non-parallelised) package `foreach` which allows us to write loops of the following form:
+```{r}
+library(foreach)
+foreach(i=1:3) %do% {
+  print(i)
+}
+```
+
+The `%do%` expression executes each loop sequentially but the `doParallel` package's `%dopar%` executes the loops in parallel.
+We must first load this package and register the desired number of cores (we'll use 2):
+```{r}
+library(doParallel)
+registerDoParallel(2)
+X = matrix(1:1e6, nrow=500, ncol=2000)
+```
+And then we can compare the performance of `%do%` and `%dopar%` as follows:
+```{r}
+system.time(foreach (i=1:100) %do% {id(X)})
+```
+```{r}
+system.time(foreach (i=1:100) %dopar% {id(X)})
+```
+
+(And finally we clean up the cluster.)
+```{r}
+stopImplicitCluster()
+```
