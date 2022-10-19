@@ -1,5 +1,9 @@
 library(dplyr)
-my.data <- read.table(file="prostate.data")
+library(data.table)
+library(RCurl)
+#my.data <- read.table(file="prostate.data")
+#my.data = fread('https://hastie.su.domains/ElemStatLearn/datasets/prostate.data')
+my.data = getURL('https://hastie.su.domains/ElemStatLearn/datasets/prostate.data')
 my.data = my.data[-c(10)]
 my.data$bias = rep(1)
 my.data = my.data[, colnames(my.data)[c(1:8,10,9)]]
