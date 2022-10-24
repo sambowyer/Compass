@@ -3,7 +3,8 @@ title: "Portfolio 2"
 author: "Sam Bowyer"
 date: "2022-10-17"
 output: 
-  pdf_document
+  pdf_document:
+    latex_engine: xelatex
 urlcolor: blue
 ---
 
@@ -183,21 +184,50 @@ git remote add upstream <upstream address>
 ```
 tells your local branch the location of the upstream (i.e. original) branch, so that you can work on your fork whilst making sure it is up to date with the upstream (using `fetch`, `merge`, `pull` etc.).
 
-### Testing & Github Actions
+### Testing
 It's important that you test the code in your packages to make sure that it works correctly, whether this is through test-driven development (e.g. writing the tests first and then writing the code bit by bit until all of the tests pass) or testing with a less regular schedule.
 
 The `R` package `testthat` provides lots of functionality to test that code does what you expect. 
-As an example, we could test this function that simply computes addition of two numbers with the following code:
-# ```{r}
-# add <- function(a,b) a+b
-# expect_equal(add(2,3), 5)
-# ```
+First, by running the command 
+```
+usethis::use_testthat(3)
+```
+the folder `tests` is created in the top-level of the package. 
+This folder contains a file `testthat.R` (which you don't need to modify) and a folder `testthat/` in which you should add test files corresponding to each script in your `R` folder.
+For instance, if we had a file `R/add.R` containing the following:
+```{r}
+add <- function(a,b) a+b
+```
+We might create the file `tests/testthat/add-test.R` containing:
+```
+test_that("add works", {
+  # Multiple `expect_...` functions exist that can be used in a variety of situations
+  expect_equal(add(2, 3), 5)  
+})
+```
+You can then run the tests in the `testthat/` folder with the command:
+```
+devtools::test()
+```
+For example, with just this one test on the (rather uninspired) function above the output would be:
+```
+ℹ Testing testRPackage
+✔ | F W S  OK | Context
+✔ |         1 | add                                                                                                                                            
 
-TODO:
-Talk about testing in R
+══ Results ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 1 ]
+```
 
-covr in R
+One further analysis we can do of the tests is to use the `covr` package via the command;
+```
+covr::report()
+```
+Which will run the tests and produce a report of which lines in the scripts were actually run during the tests---ideally you would write enough tests so that every line gets run at least once (thus decreasing the chance that any line would produce a bug after testing), however, it's not uncommon for large projects to have lines missed out in testing.
 
-check/covr in github actions
+### Github Actions
+One more benefit of hosting packages on Github is the option to run both testing and coverage reports automatically through [Github Actions](https://github.com/features/actions)---an example of continues integration (CI) whereby code changes can be integrated into the larger project through automated tests/coverage checks/style reviews/etc. 
+This not only helps development with multiple parties (e.g. running tests whenever a pull request is made to ensure any new code changes don't stop certain tests passing) but also for solo-development with tests able to run on different versions of `R` or on different operating systems.
 
-briefly mention other github actions
+Many other Github Actions exist for non-test-related tasks, such as building and publishing webpages (e.g. with [Github Pages](https://pages.github.com/) through [this](https://github.com/marketplace/actions/deploy-to-github-pages) action), running code in a repository at [regular intervals](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule), or [caching code dependencies](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows) to speed up execution of these workflows.
+
