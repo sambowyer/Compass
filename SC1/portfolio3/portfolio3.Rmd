@@ -1,7 +1,6 @@
 ---
 title: "Portfolio 3"
 author: "Sam Bowyer"
-date: "2022-10-13"
 output: pdf_document
 ---
 

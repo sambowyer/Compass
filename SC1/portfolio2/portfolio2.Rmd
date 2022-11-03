@@ -1,7 +1,6 @@
 ---
 title: "Portfolio 2"
 author: "Sam Bowyer"
-date: "2022-10-17"
 output: 
   pdf_document:
     latex_engine: xelatex
