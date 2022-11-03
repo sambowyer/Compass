@@ -11,7 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## The Tidyverse
 On [tidyverse.org](www.tidyverse.org), the tidyverse is described as "an opinionated collection of R packages designed for data science" which "share an underlying deign philosophy, grammar and data structures".
-This collection of packages is quite large (see [tidyverse.org/packages](https://www.tidyverse.org/packages/)), however, the main eight packages are:
+Not only does this provide us with very useful functionality, but provides it in a way that helps keep cope readable and therefore more easily maintainable.
+
+The collection of packages is quite large (see [tidyverse.org/packages](https://www.tidyverse.org/packages/)), however, the main eight packages are:
 
 - `ggplot2` - for creating graphics
 - `dplyr` - for data manipulation
@@ -38,9 +40,26 @@ x %>% log(. , 1.4) %>% floor %>% cos %>% plot
 ```
 
 So the output of whatever is to the left of the pipe gets sent as input to the expression on the right of the pipe, and as we saw with the `log(., 1.4)` part of the second example we can reference the left side's output directly with "`.`" if we want to specify other arguments to a function that we're using.
+If we want to 'pipe' the left-hand-side output to the second argument of a function we could write this as:
+```{r, warning=FALSE}
+x = 1:50
+x %>% log(1000, .) %>% floor %>% cos %>% plot
+```
 
 ### Data Analysis With The Tidyverse
-example from lab
+Next we'll give a short example of using pipes and dataframes to analyse weather and meter reading data in different buildings at different locations in the UK during 2016, as per [ASHRAE's Great Energy Predictor III competition on Kaggle](https://www.kaggle.com/competitions/ashrae-energy-prediction/overview).
+
+First we'll load in the `tidyverse` packages and the package `gridExtra` which will help us to organise the layout of multiple `ggplot2` plots.
+```{r}
+library(tidyverse)
+library(gridExtra)
+```
+Then we'll load the meter reading and weather data.
+```{r}
+train = read_csv("data/train.csv")
+weather_train = read_csv("data/weather_train.csv")
+```
+
 
 ### Pivoting
 One further example we'll quickly consider is using `dplry` and `tidyr` to reshape some data.

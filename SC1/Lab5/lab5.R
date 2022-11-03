@@ -1,5 +1,5 @@
 library(tidyverse)
-# library(gridExtra)
+library(gridExtra)
 train = read_csv("data/train.csv")
 weather_train = read_csv("data/weather_train.csv")
 # plot(train$timestamp, train$meterreading)
