@@ -5,7 +5,7 @@ weather_train = read_csv("data/weather_train.csv")
 # plot(train$timestamp, train$meterreading)
 meterTypes = c("Chilled Water", "Electric", "Hot Water", "Steam")
 
-# This finds the building whose meter readings at some time during Jul-Dec are outliers and mess up dataset averages
+# This finds the building whose meter readings at some time during Oct-Dec are outliers and mess up dataset averages
 outlier_building_id = train %>%
   filter(timestamp > as.POSIXct("2016-10-1"), timestamp < as.POSIXct("2016-12-1"), meter==2) %>%
   group_by(building_id) %>% summarise(max_reading = max(meter_reading)) %>%

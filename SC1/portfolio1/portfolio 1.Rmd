@@ -52,7 +52,7 @@ xs = data$xs
 ys = data$ys
 ```
 
-Defining a feature transform $\phi: \mathbb{R} \to \mathbb{R}^{b+1}$ as $\phi(x) = [1, x, x^2, ..., x^b]^T$ we can construct our design matrix \[\phi = [\phi(x_1), \phi(x_2), ..., \phi(x_{200})]\], which allows us to calculate the (unregularized) least-squares weights $w_{LS} = (\phi^T\phi)^{-1}\phi^T \mathbf{y}$ that minimizes the error $\sum_{i=1}^{200} (y_i - w^T \phi(x_i))^2$ (where $mathbf{y} = [y_1, y_2, ..., y_{200}]^T$).
+Defining a feature transform $\phi: \mathbb{R} \to \mathbb{R}^{b+1}$ as $\phi(x) = [1, x, x^2, ..., x^b]^T$ we can construct our design matrix \[\phi = [\phi(x_1), \phi(x_2), ..., \phi(x_{200})],\] which allows us to calculate the (unregularized) least-squares weights $w_{LS} = (\phi^T\phi)^{-1}\phi^T \mathbf{y}$ that minimizes the error $\sum_{i=1}^{200} (y_i - w^T \phi(x_i))^2$ (where $\mathbf{y} = [y_1, y_2, ..., y_{200}]^T$).
 ```{r}
 # First construct the design matrix with a b=3 dimensional feature transform
 phi <- function(x, b){

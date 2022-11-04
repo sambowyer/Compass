@@ -94,7 +94,7 @@ Github's [choosealicense.com](https://choosealicense.com) website gives advice o
 ### Git
 Version control is an essential part of any project's development, and git provides a much better version control system than naming your files things like `script_v3_(Final)_(IMPROVED).R` and `data_fixed_V2_OLD.dat`.
 Using git allows you (whether alone or as part of a team) to track the changes in files over time, create multiple `branches` of a project in order to take it in different directions and even merge those branches back together, plus much more with only a few (fairly) simple commands.
-Although GUIs for git do exist (including one within RStudio), we'll proceed only with the procedures for using git in the terminal as this is the most universal way to use the basic features of git and understand how they works.
+Although GUIs for git do exist (including one within RStudio), we'll proceed only with the procedures for using git in the terminal as this is the most universal way to use the basic features of git and understand how they work.
 
 With git installed you first set your name and email with the two commands:
 ```
@@ -146,7 +146,11 @@ git revert HEAD
 ### Github
 So far we've just considered having local repositories as a version control system, but services like [Github](github.com) allow us to have remote repositories, which make it easier to work on projects with multiple computers and/or people.
 
-Using Github's website we can create a new project with SSH address `git@github.com:sambowyer/testRPackage.git` (we could also use the https address `https://github.com/sambowyer/testRPackage.git` and the rest of each command would stay the same---though SSH requires you to first [set up an SSH key with Github](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)).
+Using Github's website we can create a new project with SSH address 
+```
+git@github.com:sambowyer/testRPackage.git
+```
+(we could also use the https address `https://github.com/sambowyer/testRPackage.git` and the rest of each command would stay the same---though SSH requires you to first [set up an SSH key with Github](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)).
 Then we can add our Github repo as a remote location '`origin`', create a '`main`' branch, and push our existing (local) branch to this remote repo's `main` branch using the commands:
 ```
 git remote add origin git@github.com:sambowyer/testRPackage.git
@@ -177,7 +181,7 @@ git pull <remote> <branch>
 
 If you've cloned someone else's Github repository and worked on your own branch of it (known as a 'fork' of the repo) locally, you can submit a "Pull Request" on their Github repo page to ask for them to merge the main branch with yours (thus incorporating the work you've done on the repo).
 Typically you would add information justifying your code changes and if a maintainer of the repo approves the request the branches will merge---and hopefully with no conflicts; it's useful to keep pull requests simple enough that conflicts do not arise between branches.
-The command:
+The command
 ```
 git remote add upstream <upstream address>
 ```

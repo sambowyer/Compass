@@ -337,7 +337,7 @@ polynomialRC$methods(
 Note that we reference the object's fields with `.self$[field]` rather than S3's `$` and S4's `@` symbols, this is much more like C++ and Python.
 Defining all of the methods in a class in one place generally improves readability and is again more similar to class/method implementations in other OOP languages.
 
-We can now create a `polynomial` object using the `polynomial$new` command and use its methods as follows:
+We can now create a `polynomial` object using the `polynomialRC$new` command and use its methods as follows:
 ```{r}
 poly4 = polynomialRC$new(coeffs=c(-0.3,1.3,-2,1,0.1,-0.2,-0.6,1))
 poly4$print()

@@ -7,6 +7,7 @@ urlcolor: blue
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
 ```
 
 ## The Tidyverse
@@ -29,7 +30,7 @@ We'll go through an example of working with some of these packages that will giv
 ### Pipes in `magrittr`
 The package `magrittr` allows us to use the pipe operator `%>%` which can simplify and make code more readable, for example we can rewrite this code
 ```{r}
-x = 1:100
+x = 2:100
 plot(cos(floor(log(x, 1.4))))
 ```
 as the following
@@ -42,7 +43,7 @@ x %>% log(. , 1.4) %>% floor %>% cos %>% plot
 So the output of whatever is to the left of the pipe gets sent as input to the expression on the right of the pipe, and as we saw with the `log(., 1.4)` part of the second example we can reference the left side's output directly with "`.`" if we want to specify other arguments to a function that we're using.
 If we want to 'pipe' the left-hand-side output to the second argument of a function we could write this as:
 ```{r, warning=FALSE}
-x = 1:50
+x = 2:50
 x %>% log(1000, .) %>% floor %>% cos %>% plot
 ```
 
@@ -50,18 +51,116 @@ x %>% log(1000, .) %>% floor %>% cos %>% plot
 Next we'll give a short example of using pipes and dataframes to analyse weather and meter reading data in different buildings at different locations in the UK during 2016, as per [ASHRAE's Great Energy Predictor III competition on Kaggle](https://www.kaggle.com/competitions/ashrae-energy-prediction/overview).
 
 First we'll load in the `tidyverse` packages and the package `gridExtra` which will help us to organise the layout of multiple `ggplot2` plots.
-```{r}
+```{r, message=FALSE}
 library(tidyverse)
 library(gridExtra)
 ```
-Then we'll load the meter reading and weather data.
+Then we'll load the meter reading and weather data (observe that this gives us some metadata about the datasets).
 ```{r}
-train = read_csv("data/train.csv")
-weather_train = read_csv("data/weather_train.csv")
+meters = read_csv("data/train.csv")
+weather = read_csv("data/weather_train.csv")
+```
+We can now inspect both datasets to better figure out what we're working with.
+```{r}
+meters
+weather
 ```
 
+We would like to create a plot that tracks mean meter readings (from each type of meter) along with the weather from January 2016 to January 2017.
+We can check the values that the `meter` column takes by using the `unique` function as follows:
+```{r}
+meters["meter"] %>% unique
+```
+
+Since we now that each meter takes values 0 to 3 we can write the following function which returns a `ggplot` of the mean meter reading over time for a certain meter type.
+By following the pipes we can see that the function achieves this by filtering out the meter readings not of our specified type, then averaging over locations by grouping all rows with the same timestamp (with `group_by`) and taking the mean of these groups (through `summarise`).
+(We define the vector `meterTypes` to help us create titles for each of these plots based on the type of meter we're taking data from.)
+```{r}
+meterTypes = c("Chilled Water", "Electric", "Hot Water", "Steam")
+
+meanMeterReadingPlot <- function(meterNo){
+  meters %>%
+  filter(meter==meterNo) %>%
+  group_by(timestamp) %>%
+  summarise(mean=mean(meter_reading)) %>%
+  ggplot() + geom_point(aes(timestamp, mean)) + ggtitle(meterTypes[meterNo+1]) + 
+    xlab("Timestamp") + ylab("Mean Meter Reading")
+}
+meanMeterReadingPlot(2)
+```
+(Note that the `ggplot2` package inside `tidyverse` allows us to flexibly add elements to the plot with the `+` operator.)
+
+From this plot we see that there is a serious outlier around November which it would be good to remove, perhaps representing readings from a faulty meter.
+To find the offending building we can use the following series of pipes, which filter the dataframe down to October and November hot water meter readings, then find the `building_id` with the greatest maximum reading:
+```{r}
+outlier_building_id = meters %>%
+  filter(timestamp > as.POSIXct("2016-10-1"),
+         timestamp < as.POSIXct("2016-12-1"), meter==2) %>%
+  group_by(building_id) %>% summarise(max_reading = max(meter_reading)) %>%
+  arrange(desc(max_reading)) %>%
+  head(1) %>%
+  pull(building_id)
+
+outlier_building_id
+```
+Thus we can rewrite out `meanMeterReadingPlot` function to exclude this building by adding in the line `filter(building_id!=outlier_building_id)`, so the function becomes:
+```{r}
+meanMeterReadingPlot <- function(meterNo){
+  meters %>%
+  filter(meter==meterNo) %>%
+  filter(building_id!=outlier_building_id) %>%
+  group_by(timestamp) %>%
+  summarise(mean=mean(meter_reading)) %>%
+  ggplot() + geom_point(aes(timestamp, mean)) + ggtitle(meterTypes[meterNo+1]) +
+    xlab("Timestamp") + ylab("Mean Meter Reading")
+}
+meanMeterReadingPlot(2)
+```
+Which leads to a much better plot with the outlier now removed.
+
+We can then make a similar plot using the weather data (using the `air_temperature` column of the `weather` dataframe):
+```{r, warning=FALSE}
+weatherPlot = weather %>% 
+  group_by(timestamp) %>%
+  summarise(temp = mean(air_temperature)) %>%
+  ggplot() + geom_point(aes(timestamp, temp)) + ggtitle("Mean Temperature") +
+    xlab("Timestamp") + ylab("Mean Temperature (C)")
+
+weatherPlot
+```
+
+And finally we can put these plots together using the function `grid.arrange` from the `gridExtra` package we loaded earlier.
+```{r, warning=FALSE}
+grid.arrange(meanMeterReadingPlot(0), meanMeterReadingPlot(1),
+             meanMeterReadingPlot(2), meanMeterReadingPlot(3), weatherPlot,
+             layout_matrix = rbind(c(1, 2),
+                                   c(3, 4),
+                                   c(5,5))
+             )
+```
 
 ### Pivoting
-One further example we'll quickly consider is using `dplry` and `tidyr` to reshape some data.
-In particular we'll use the
+One further example we'll quickly consider is using `tidyr` to reshape some data.
+Let's use the `billboard` dataset which holds the Billboard Top 100 songs from each week in 2000.
+```{r}
+data("billboard")
+billboard
+```
 
+The `pivot_longer` function increases the number of rows and decrease the number of columns in a dataframe/tibble.
+To see this, we can use it to create individual rows for each song-week combination.
+To do this we provide `pivot_longer` with the first argument `-c(artist, track, date.entered)` to indicate that we want to keep these columns and place the values of the other columns (`week1`, `week2`, etc.) into a column with a name specified by the argument `values_to`.
+The columns we're removing (`week1`, `week2`, etc.) then move into a new column with a name specified by the argument `names_to`.
+
+```{r}
+longBillboard = billboard %>% pivot_longer(-c(artist, track, date.entered), 
+                           names_to="week", values_to="place")
+longBillboard
+```
+
+The function `pivot_wider` works in the opposite way by increases the number of columns and decreasing the number of rows.
+To get back to the original dataset from `longBillboard` using `pivot_wider` we would run the command given below:
+```{r}
+longBillboard %>% pivot_wider(names_from = "week", values_from = "place")
+```
+This turns the entries in the column specified by `names_from` into individual columns that take values from the corresponding entry in the column specified by `values_from`.

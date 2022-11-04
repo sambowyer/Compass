@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 `R` is an interpreted language, so loops (particularly nested loops) can be very slow. Instead, it is often useful to use built-in vector operations, which tend to be written in C/C++ and hence are compiled and run much faster.
 
-As example consider the two functions below that both compute the minimum value that the sign function takes from elements in a vector:
+As example consider the two functions below that both compute the minimum value that the sine function takes from elements in a vector:
 
 ```{r}
 minsin1 <- function(x){
@@ -156,7 +156,7 @@ system.time(func_loop(x))
 
 ### `sapply`
 
-`sapply(X, FUN, ...)`: works like `sapply` but simplifies the output before returning.
+`sapply(X, FUN, ...)`: works like `lapply` but simplifies the output before returning.
 
 ```{r}
 sapply(1:4, sqrt)
@@ -215,7 +215,7 @@ Filter(function(x) sqrt(x^2) == x, -10:10)
 ```
 
 ## Parallel Programming
-For large tasks we can distribute computation across multiple CPU cores in the hopes of a speed increase (though this won't help if the task is slow for a non-CPU-related bottleneck,m such as within the task's use of memory, networking or I/O).
+For large tasks we can distribute computation across multiple CPU cores in the hopes of a speed increase (though this won't help if the task is slow for a non-CPU-related bottleneck, such as within the task's use of memory, networking or I/O).
 
 We can check how many cores our CPU has by using the `parallel` package:
 ```{r}
