@@ -14,7 +14,7 @@ negXs = c()
 ys = c()
 for (i in 1:n){
   if (g(xs[i,]) > 0) {
-    y = 1 
+    y = 1
     posXs = rbind(posXs, xs[i,])
   } else {
     y = -1
@@ -35,8 +35,18 @@ xs = rbind(xs, c(1,1))
 negXs = rbind(negXs, c(1,1))
 ys = c(ys, -1)
 
+####### MORE DISTINCT CLASSES 
+posXs = cbind(rnorm(n/2,  0.8, 1), rnorm(n/2,  1.8, 1))
+negXs = cbind(rnorm(n/2, -1.8, 1), rnorm(n/2, -0.8, 1))
+xs = rbind(posXs, negXs)
+ys = c(rep(1, n/2), rep(-1,n/2))
+
+shuffleOrder = sample(nrow(xs))
+xs = xs[shuffleOrder,]
+ys = ys[shuffleOrder]
+
 refresh <- function(){
-  plot(x1s, x2s, type='n', xlab='x1', ylab='x2')
+  plot(xs[,1], xs[,2], type='n', xlab='x1', ylab='x2', xlim=c(-5,5), ylim=c(-5,5))
   points(posXs[,1], posXs[,2], col="red")
   points(negXs[,1], negXs[,2], col="blue")
 }
