@@ -1,0 +1,21 @@
+---
+title: "Portfolio 7"
+author: "Sam Bowyer"
+output: pdf_document
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
+```
+
+# Numerical Optimization
+
+## Theory
+
+### One-Dimensional Optimization
+
+
+### Multi-Dimension Optimization
+
