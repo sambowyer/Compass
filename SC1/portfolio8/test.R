@@ -66,7 +66,7 @@ SA <- function(s0, t0, tempUpdate, maxIter, neighbourhoodSize){
     if (iter %% 1000 == 0) {
       print(best)
       cat("Iteration ", iter, ": ", bestFitness, "\n")
-    }die
+    }
     
     iter = iter + 1
   }

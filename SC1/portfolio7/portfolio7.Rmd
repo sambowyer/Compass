@@ -1,8 +1,12 @@
 ---
 title: "Portfolio 7"
 author: "Sam Bowyer"
-output: pdf_document
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
 urlcolor: blue
+always_allow_html: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -10,95 +14,102 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
 ```
 
-# Numerical Optimization
+# Matrices
 
-## Theory
+Matrices are an extremely important data structure in `R` so it will be instructive to examine their usage in some detail through this portfolio.
+In particular we will separately discuss dense matrices (which we are already familiar with) and sparse matrices.
 
-### One-Dimensional Optimization
-
-
-### Multi-Dimension Optimization
-
-### Solving a Magic-Word-Grid with Simulated Annealing
-We'll first check 4x4 grids and define a fitness function that counts how many words can be found in the rows and columns of the grid:
+## Dense Matrices
+As previously seen we can create a matrix by specifying its entries by columns as follows:
 ```{r}
-n = 4
-
-install.packages("qdapDictionaries")
-library(qdapDictionaries)
-isWord  <- function(x) x %in% GradyAugmented 
-
-fitness <- function(grid){
-  # Add row scores
-  score = sum(isWord(apply(grid, 1, function(x) paste(unlist(x), collapse=""))))
-  
-  # Add column scores
-  score = score + sum(isWord(apply(grid, 2, function(x) paste(unlist(x), collapse=""))))
-  
-  # Add diagonal scores
-  score = score + isWord(paste(diag(as.matrix(grid)), collapse="")) 
-  score = score + isWord(paste(diag(as.matrix(rev(grid[n:1,n:1]))), collapse=""))
-  
-  return(score)
-}
+a = matrix(1:12, 4, 3)
+a
+```
+However, we can also specify the values by row if we set `byrow=T`:
+```{r}
+b = matrix(1:12, 4, 3, byrow=T)
+b
+```
+The `4` and `3` in here specify the dimensions of the matrix and can be recovered using the `dim` function:
+```{r}
+dim(a)
+```
+We can also give the columns and rows names, either at creation of the matrix or afterwards:
+```{r}
+c = matrix(1:15, 3, 5, dimnames=list(c('X', 'Y', 'Z'), c('1', '2', '3', '4', '5')))
+c
+rownames(c)
+colnames(c)
+rownames(c) = c('A','B','C')
+c
+```
+Rows and columns can be obtained as follows: 
+```{r}
+c[1,]
+c[,1]
+```
+Note that by default this returns a vector for the column, we can use the `drop=F` indexing option to return a matrix instead:
+```{r}
+c[,1,drop=F]
 ```
 
-Now to generate a random grid:
+Matrices come with many features in base `R` including transposition (via `t(...)`) matrix multiplication (via `%*%`), inversion (via `solve(...)`) and eigen-decomposition (via `eigen(...)`), for example:
 ```{r}
-getGrid <- function(){
-  grid = data.frame(matrix(sample(LETTERS, n*n, replace=TRUE), ncol=n, nrow=n))
-  colnames(grid) = 1:n
-  return(grid)
-}
-grid = getGrid()
-print(grid)
-print(fitness(grid))
+d = t(a) %*% b
+d
+
+e = matrix(c(-1, 1.5, 1, -1), 2, 2)
+e
+e_inverse = solve(e)
+e_inverse
+eigen(e)
 ```
 
-And we also need a method by which to move from one grid to a neighboring grid (in which case we'll say two grids are neighbours if they differ by one letter):
+Finally we also note that `R` has a `Matrix` package that greatly expands the functionality possible with matrices, for instance it allows us to easily get the rank of a matrix with `rankMatrix` (note that we are generating these matrices with the capitalised `Matrix` function and no longer the lowercase `matrix` function):
 ```{r}
-getNeighbour <- function(grid){
-  pos = sample(1:n, 2, rep=TRUE)
-  val = grid[pos[1], pos[2]]
-  
-  newGrid = grid
-  newGrid[pos[1], pos[2]] = sample(setdiff(LETTERS, val), 1)
-  return(newGrid)
-}
-neighbour = getNeighbour(grid)
-print(neighbour)
-print(fitness(neighbour))
+library(Matrix)
+f = Matrix(c(2,4,2,4), nrow=2, ncol=2)
+g = Matrix(c(2,4,2,5), nrow=2, ncol=2)
+c(rankMatrix(f),rankMatrix(g))
 ```
 
-Finally we define the simulated annealing algorithm:
+## Sparse Matrices
+Matrix operations are relatively fast in `R` and can be sped up even further by using C/C++ code (with the `Rcpp` package) alongside careful memory management, however, for very large matrices computation time can easily become intractable regardless of implementation. 
+It is here useful to distinguish the case in which a matrix is large but sparse (i.e. has mostly entries of 0); ordinarily large matrices would be difficult to work with efficiently but utilising the sparsity present we can improve the computational efficiency by not storing each of the 0 entries separtely.
+For this we'll use the `Matrix` package again, but this time with the argument `sparse=TRUE`.
 ```{r}
-SA <- function(s0, t0, tempUpdate, maxIter){
-  best = s0
-  bestFitness = fitness(s0)
-  
-  temp = t0
-  
-  iter = 1
-  while(bestFitness < n & iter < maxIter){
-    neighbour = getNeighbour(best)
-    neighbourFitness = fitness(neighbour)
-    # difference = neighbourFitness - bestFitness
-    
-    if (neighbourFitness > bestFitness) print(neighbour)
-    
-    temp = tempUpdate(temp, iter)
-    rand = runif(1)
-    
-    if (neighbourFitness > bestFitness | rand < exp(-1/temp)){
-      best = neighbour
-      bestFitness = neighbourFitness
-    }
-    
-    iter = iter + 1
-  }
-  print(best)
-  print(bestFitness)
-}
+h = matrix(c(1, rep(0,999)), 10, 100)
+h_sparse = Matrix(c(1, rep(0,999)), nrow=10, ncol=100, sparse=TRUE)
+h[1:5,1:5]
+h_sparse[1:5,1:5]
+c(object.size(h), object.size(h_sparse))
+```
+We can see here that the sparse matrix requires a lot less storage than the dense matrix, but note that there are storage costs involved in the sparse matrix that would result in higher storage requirements for small, sparse matrices:
+```{r}
+i = matrix(c(1, rep(0,24)), 5, 5)
+i_sparse = Matrix(c(1, rep(0,24)), nrow=5, ncol=5, sparse=TRUE)
+i
+i_sparse
+c(object.size(i), object.size(i_sparse))
+```
+In this example we can also see that `i_sparse` is of class `ddiMatrix` whereas `h_sparse` was of class `dgCMatrix`.
+These refer to the different methods of compression used for storing these matrices--in particular, `dgC` refers to "digits" (rather than `l` for "logicals" for example) stored in a "general" (as opposed to e.g. triangular, symmetric or diagonal) sparse matrix with storage based on the "columns" (instead of, say, `r` for "rows" or `t` for "triplets").
+The class `ddiMatrix` comes from the fact that `i_sparse` is a diagonal matrix (which extends from the sparse matrix class).
+It makes sense then that we can use a variety of different sparse matrix types, such as `dgRMatrix` for digit matrices stored in compressed sparse row (CSR)---rather than compressed sparse column (CSC)---format.
+Furthermore we can often (though not always) convert between these different formats: we can convert from `dgCMatrix` to `dgTMatrix` (and vice versa), but we cannot convert from `dgCMatrix` or `dgTMatrix` to `dgRMatrix`.
+Finally, note that we can perform regular matrix operations with sparse matrices and that these will (hopefully) result in a speed up of computation time (though be wary of taking inverses of sparse matrices as the inverses may not themselves be sparse).
+```{r}
+j_vals = sample(c(0,1), 100000, replace=TRUE, prob=c(0.95, 0.05))
+j = matrix(j_vals, 1000, 1000)
+j_sparse = Matrix(j_vals, nrow=1000, ncol=1000, sparse=TRUE)
 
-SA(grid, 100, function(t, i) t*(1-i/100), 10000)
+k_vals = sample(c(0,-1,-2), 100000, replace=TRUE, prob=c(0.8, 0.05, 0.15))
+k = matrix(k_vals, 1000, 1000)
+k_sparse = Matrix(k_vals, nrow=1000, ncol=1000, sparse=TRUE)
+
+j_sparse[1:5,1:5]
+k_sparse[1:5,1:5]
+
+system.time(j%*%t(k))
+system.time(j_sparse%*%t(k_sparse))
 ```
