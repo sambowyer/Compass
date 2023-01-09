@@ -1,14 +1,15 @@
 ---
 title: "SC1 Assessment 2"
 author: "Sam Bowyer"
-date: "2023-01-06"
 output: pdf_document
+bibliography: references.bib
 header-includes: 
   - \usepackage{tikz}
   - \usetikzlibrary{automata,arrows,positioning,calc}
   - \usetikzlibrary{shapes,snakes}
   - \DeclareMathOperator*{\argmax}{argmax} % thin space, limits underneath in displays
   - \DeclareMathOperator*{\argmin}{argmin}
+  - \bibliographystyle{plain}
 ---
 
 ```{r setup, include=FALSE}
@@ -31,7 +32,7 @@ In this document we will limit ourselves to time homogeneous Markov chains with 
 For a Markov chain to be time homogeneous we simply mean that the probability of transition between any two states is constant with respect to $t$, that is:
 \[\mathbb{P}(X_t = j | X_{t-1} = i) = \mathbb{P}(X_{t'} = j | X_{t'-1} = i) \;\; \forall t, t'.\]
 
-With this, we can then represent our Markov chain fully by $(\pi, A)$ where $\pi \in \mathbb{R}^N$ gives us the initial distribution over state space S and $A \in \mathbb{R}^{N \times N}$ gives us the transition probabilities, meaning that
+With this, we can then represent our Markov chain fully by $(\pi, A)$ where $\pi \in \mathbb{R}^N$ gives us the initial distribution over state space S and $A = (a_{ij}) \in \mathbb{R}^{N \times N}$ gives us the transition probabilities, meaning that
 \[\pi_i = \mathbb{P}(X_1 = i)\]
 and
 \[a_{ij} = \mathbb{P}(X_{t} = j | X_{t-1} = i).\]
@@ -80,12 +81,14 @@ This Markov chain can be represented by the following diagram.
 \end{center}
 
 ### Sparse Matrices For Large Random Walks
-If we extend this random walk model to one with a large $N$ number of states where transition is only possible between adjacent states (and self-loops are not allowed), we arrive at a situation where we might benefit from using `R`'s sparse matrix implementation. 
+If we extend this random walk model to one with a large $N$ number of states where transition is only possible between adjacent states (and self-loops are not allowed), we can arrive at a situation where we might benefit from using `R`'s sparse matrix implementation. 
 ```{r}
 library(Matrix)
-N = 21 # SET TO AT LEAST 201 BEFORE FINAL KNIT
+N = 21
+
 pi = rep(0,N)
-pi[ceiling(N/2)] = 1
+pi[ceiling(N/2)] = 1  # guaranteed to start in the middle state
+pi
 
 getRandomWalkTransitions <- function(N, sparse=FALSE){
   a_ijs = rep(0, N*N)
@@ -106,12 +109,13 @@ A_sparse = getRandomWalkTransitions(N, TRUE)
 ```
 As an example, here is $A$ for the simpler case when $N=10$:
 ```{r}
-getRandomWalkTransitions(10)
+getRandomWalkTransitions(10, TRUE)
 ```
 
 When working with Markov chains it can often be useful to find the $\mathbb{P}(X_t = i | \pi, A)$ for all $i \in S$ and some arbitrary $t$.
 We can calculate a vector of these probabilities for each state $i \in S$ easily as $\pi A^{t-1}$ (with $\pi$ as a row vector), but note below that such a calculation is made considerably faster for large $N$ when using the sparse matrix implementation compared to the regular implementation:
 ```{r}
+# to calculate pi A^(t-1)
 stateProbs <- function(pi, A, t){
   temp = A
   for (i in 1:t-2){
@@ -221,7 +225,7 @@ This simple example is represented by the following diagram, where we have taken
 \end{center}
 
 Now we return to our large $N$ random walk and will say that $X_t = i$ leads to an observation of $Y_t=i$ with probability $0.5$, and to an observation of $i-1$ or $i+1$ each with probability $0.25$, hence $M = N+2$ and $O = \{0, 1, ..., N+1\}$. 
-(This particular choice of observation procedure does give some special behaviour in that observing $Y_t = 0$ guarantees that $X_t = 1$ and $Y_t = N+1$ guarantees $X_T = N$, however, this observation is not directly necessary for the general analysis that follows.)
+(This particular choice of observation procedure does give some special behaviour in that observing $Y_t = 0$ guarantees that $X_t = 1$ and $Y_t = N+1$ guarantees $X_t = N$, however, this is not directly necessary for the general analysis that follows.)
 
 ```{r}
 getRandomWalkEmmisions <- function(N, sparse=FALSE){
@@ -266,7 +270,7 @@ Y[1:20]
 ```
 
 ### Filtering
-Now suppose that we just have the observations $Y = (Y_1, ..., Y_T)$ and the parameters $\lambda = (\pi, A, B)$, and want to infer the states of the latent Markov chain $X = (X_1, ..., X_T)$.
+Now suppose that purely based off the observations $Y = (Y_1, ..., Y_T)$ and the parameters $\lambda = (\pi, A, B)$ we want to infer the states of the latent Markov chain $X = (X_1, ..., X_T)$.
 The task of predicting $X_t$ for some $t \in [T]$ based purely on the observations up to time $t$ (that is $Y_1, ..., Y_t$) is known as *filtering*, and we shall tackle it using the *forward algorithm*.
 This involves calculating what are known as *forward probabilities* $\alpha_t(i) = \mathbb{P}(Y_1, .., Y_t, X_t=i | \lambda)$.
 This can be done inductively:
@@ -365,7 +369,7 @@ sum(X_smoothEstimate == X)/max_t
 ```
 
 Here it is also useful to note that the entire chain of MAP estimates, both for the smoothed and filtered case, does not give you the most likely full chain of states for $X$, it is choosing the most likely state for each time step $t$ without considering the estimates at any other time step.
-Because of this we may arrive at impossible chains of estimates including transitions where none are possible: you can see that the first three states estimated by our filtered values are `14` despite the fact that we know our Markov chain $X$ cannot stay in the same state in consecutive time steps.
+Because of this we may arrive at chains of estimates which include impossible transitions (ones with zero probability): you can see that the first three states estimated by our filtered values are `14` despite the fact that we know our Markov chain $X$ cannot stay in the same state in consecutive time steps.
 To deal with this problem and find the most likely entire chain we might use the Viterbi algorithm, which works using similar machinery to the Forward-Backward algorithm, however, it will not be covered in this document.
 
 ### Parameter Estimation
@@ -374,7 +378,7 @@ Supposing we only receive the set of observations $Y = (Y_1, ..., Y_T)$ (and we 
 
 This problem can be tackled in a variety of ways, however, we will present the Baum-Welch algorithm (which is a special case of the expectation maximisation algorithm) which makes use of the forward, backward and smoothed probabilities we've already been calculating.
 
-To make it easier to see what the algorithm is doing (and to lower the storage requirements), we will return to the simpler example we've used before with the following diagram and supposing that $X_1$ is equally likely to be any of the states in $S = \{1,2,3\}$.
+To make it easier to see what the algorithm is doing (and to lower the storage requirements), we will return to the simpler example we've used before with the following diagram and will suppose that $X_1$ is equally likely to be any of the states in $S = \{1,2,3\}$ (that is, $\pi = (1/3, 1/3, 1/3)$).
 \begin{center}
 	\begin{tikzpicture}[->, >=stealth', auto, semithick, node distance=3cm, 	state/.style={circle, draw, minimum size=1.5cm}]
 	\tikzstyle{every state}=[fill=white,draw=black,thick,text=black,scale=1]
@@ -424,7 +428,7 @@ Y = HMM$Ys
 X; Y
 ```
 
-We can see that although this model is simpler than the previous one (in that it has fewer parameters), the more varied behaviour of the Markov chain $X$ and the emission probabilities leads to the MAP estimates of states being less accurate than before.
+We can see that although this model is simpler than the previous one (in that it has fewer parameters), the more varied behaviour of the Markov chain $X$ and the emission probabilities leads to the MAP estimates of states being less accurate than before (both for the Forward algorithm estimates and the Forward-Backward algorithm estimates).
 ```{r}
 log_alpha = forwardProbabilities(pi, A, B, Y)
 log_beta = backwardProbabilities(pi, A, B, Y)
@@ -437,9 +441,10 @@ sum(X_filterEstimate == X)/max_t; sum(X_smoothEstimate == X)/max_t
 ```
 
 To perform the Baum-Welch algorithm we first make some initial guess at the parameter values $\lambda = (\pi, A, B)$.
-If we have some previous knowledge of the problem that could help with this guess we can use that (this might arrive at the true values faster), however, we will simply make our initial guesses at random.
+If we have some previous knowledge of the model that could help with this guess we can use that (this might help the algorithm find a better local optima faster), however, here we will simply make our initial guesses at random.
 ```{r}
 getNormalisedDist <- function(n){
+  # since each row of A and B (and also pi) should add up to 1
   ps = runif(n)
   return(ps/sum(ps))
 }
@@ -469,10 +474,10 @@ The Baum-Welch requires us to calculate one final set of probabilities (whose us
     \beta_{t+1}(j)}
     {\sum_{k=1}^N \sum_{l=1}^N \alpha_t(k) \cdot
     a_{kl}b_l(Y_{t+1}) \cdot 
-    \beta_{t+1}(l)}
+    \beta_{t+1}(l)}.
     \end{aligned}\]
 There are $(T-1)N^2$ of these values, which is a lot, hence why we're now using the smaller HMM example.
-We also provide a function here that will calculate the sums $\sum_{t=1}^{T-1} \xi_t(i,j)$ as is the only form in which these probabilities are used within the Baum-Welch algorithm.
+We also provide a function here that will calculate the sums $\sum_{t=1}^{T-1} \xi_t(i,j)$ as this is the only form in which these probabilities are used within the Baum-Welch algorithm.
 
 ```{r}
 smoothedTransitionProbabilities <- function(A, B, Y, log_alpha, log_beta){
@@ -494,7 +499,7 @@ smoothedTransitionProbabilities <- function(A, B, Y, log_alpha, log_beta){
   return(log_xi)
 }
 
-summedSmoothesTransitionProbabilities <- function(log_xi){
+summedSmoothedTransitionProbabilities <- function(log_xi){
   N = nrow(log_xi[[1]])
   
   xi_sums = matrix(rep(0, N*N), nrow=N)
@@ -518,7 +523,9 @@ The final step of the Baum-Welch algorithm, given some parameter guesses $\lambd
 
 This update procedure is then repeated with the new parameter estimates until they stabilise into a local optimum.
 There's no guarantee of finding the global optimum, however, given enough time the Baum-Welch algorithm (being a special case of the EM algorithm) will find a local optimum.
-
+```{r, include=FALSE}
+set.seed(1)
+```
 ```{r}
 baumwelch <- function(N, M, Y, max_iter){
   max_t = length(Y)
@@ -534,7 +541,7 @@ baumwelch <- function(N, M, Y, max_iter){
     log_beta  = backwardProbabilities(pi, A, B, Y)
     log_gamma = smoothedProbabilities(log_alpha, log_beta)
     log_xi    = smoothedTransitionProbabilities(A, B, Y, log_alpha, log_beta)
-    xi_sums   = summedSmoothesTransitionProbabilities(log_xi)
+    xi_sums   = summedSmoothedTransitionProbabilities(log_xi)
     
     # M step
     pi_new = exp(log_gamma[,1])
@@ -565,7 +572,6 @@ baumwelch <- function(N, M, Y, max_iter){
     lambda = list(pi=pi, A=A, B=B)
   }
   
-  lambda = list(pi=pi, A=A, B=B)
   return(lambda)
 }
 
@@ -574,61 +580,56 @@ lambda
 pi; A; B
 ```
 We can see that the estimates produced, whilst not perfect, manage to capture lots of the behaviour present in our HMM.
-In particular, the algorithm has managed to get very impressive estimates for the emission probabilities $B$ when $X_t \in \{1,3\}$, even if the $b_2(o_k)$ probabilities are very far off the reality.
-Similarly for the transition probabilities $A$ we see somewhat accurate estimates for the first two rows (though by no means perfect), but the third row is quite wrong---we can see here that we've ended up in a local optimum.
+In particular, the algorithm has managed to get fairly good estimates for the emission probabilities $B$ when $X_t \in \{1,3\}$ (the first and third rows of $B$), even if the $b_2(o_k)$ probabilities are very far off the reality.
+Similarly for the transition probabilities $A$ we see somewhat accurate estimates for the bottom two rows (though by no means perfect), but the values for $a_{1,2}$ and $a_{1,3}$ are very wrong---we can see here that we've ended up in a local optimum.
 
-We also see that $\pi$ has been estimated as essentially $[1,0,0]$, which agrees with the fact that $X_1 = 1$:
+We also see that $\pi$ has been estimated as essentially $(1,0,0)$, which agrees with the fact that $X_1 = 1$, even if it isn't actually a good estimate of $\pi$---for that we'd need more data.
 ```{r}
 X[1]
 ```
-However, clearly this isn't a good estimate of $\pi$, for that we really need multiple observed sequences $\{Y^k\}_{k=1}^K$ where each $Y^k = (Y_1^K, ..., Y_{T_k})$ corresponds to a different sequence of Markov chain states $X^k = (X_1^k, ..., X_{t_k}^k)$, each of (potentially different) length $T_k$.
-With these, we can simply run the Baum-Welch algorithm $K$ times (once on each observation-sequence) and then generate a final estimate of $\pi$ by averaging each corresponding entry in the $K$ different estimates we obtain. 
-(Sadly doing the same for $A$ and $B$ doesn't lead to much improvement as the local optima they get stuck in more complex than $\pi$'s one-hot vectors and so averaging out doesn't work quite so well. We have written the code for $A$ and $B$ here anyway so that this behaviour can be observed.)
-```{r}
-K = 100
+<!-- However, clearly this isn't a good estimate of $\pi$, for that we really need multiple observed sequences $\{Y^k\}_{k=1}^K$ where each $Y^k = (Y_1^K, ..., Y_{T_k})$ corresponds to a different sequence of Markov chain states $X^k = (X_1^k, ..., X_{t_k}^k)$, each of (potentially different) length $T_k$. -->
+<!-- With these, we can simply run the Baum-Welch algorithm $K$ times (once on each observation-sequence) and then generate a final estimate of $\pi$ by averaging each corresponding entry in the $K$ different estimates we obtain.  -->
+<!-- To check that this estimate isn't just always going to move toward the uniform distribution on $S$ we'll change $\pi$ for this final example to $(0.1,0.6,0.3)$. -->
+<!-- (Sadly doing the same for $A$ and $B$ doesn't lead to much improvement as the local optima they get stuck in more complex than $\pi$'s one-hot vectors and so averaging out doesn't work quite so well. We have written the code for $A$ and $B$ here anyway so that this behaviour can be observed.) -->
+<!-- ```{r} -->
+<!-- K = 500 -->
 
-pi_estimates = list()
-A_estimates  = list()
-B_estimates  = list()
+<!-- pi = c(0.01,0.8,0.19) -->
 
-# Create a list of partial-means for each parameter
-pi_partialMeans = list()
-A_partialMeans  = list()
-B_partialMeans  = list()
+<!-- pi_estimates = list() -->
+<!-- A_estimates  = list() -->
+<!-- B_estimates  = list() -->
 
-getPartialMean <- function(Zs){
-  partial_K = length(Zs)
-  temp = Zs[[1]]
-  if (partial_K > 1){
-    for (k in 2:partial_K){
-      temp = temp + Zs[[k]]
-    }
-  }
-  return(temp/partial_K)
-}
+<!-- for (k in 1:K){ -->
+<!--   max_t_k = sample(50:150, 1) -->
 
-for (k in 1:K){
-  max_t_k = sample(50:150, 1)
-  
-  HMM = runHMM(pi, A, B, O, max_t_k)
-  Y = HMM$Ys
-  
-  lambda = baumwelch(N, M, Y, 100)
-  pi_estimates[[k]] = lambda$pi
-  A_estimates[[k]]  = lambda$A
-  B_estimates[[k]]  = lambda$B
-  
-  pi_partialMeans[[k]] = getPartialMean(pi_estimates)
-  A_partialMeans[[k]]  = getPartialMean(A_estimates)
-  B_partialMeans[[k]]  = getPartialMean(B_estimates)
-}
+<!--   HMM = runHMM(pi, A, B, O, max_t_k) -->
+<!--   Y = HMM$Ys -->
 
-pi_partialMeans[K]; A_partialMeans[K]; B_partialMeans[K]
-pi; A; B
-```
-From this we see an improved overall estimate for $\pi$---by repeating the Baum-Welch algorithm multiple times with random initial guesses each time we manage to explore more of the search space.
-However, as mentioned before, the estimates for $A$ and $B$ are actually worse, each row seeming to move towards a uniform distribution.
+<!--   lambda = baumwelch(N, M, Y, 100) -->
+<!--   pi_estimates[[k]] = lambda$pi -->
+<!--   A_estimates[[k]]  = lambda$A -->
+<!--   B_estimates[[k]]  = lambda$B -->
+<!-- } -->
 
+<!-- getMean <- function(Zs){ -->
+<!--   K = length(Zs) -->
+<!--   temp = Zs[[1]] -->
+<!--   for (k in 2:K){ -->
+<!--       temp = temp + Zs[[k]] -->
+<!--   } -->
+<!--   return(temp/K) -->
+<!-- } -->
+
+<!-- getMean(pi_estimates); getMean(A_estimates); getMean(B_estimates) -->
+<!-- pi; A; B -->
+<!-- ``` -->
+<!-- From this we see an improved overall estimate for $\pi$---by repeating the Baum-Welch algorithm multiple times with random initial guesses each time we manage to explore more of the search space. -->
+<!-- However, as mentioned before, the estimates for $A$ and $B$ are actually worse, each row seeming to move towards a uniform distribution. -->
+
+Further discussion on HMMs can be found in \cite{rabiner_tutorial_1989}, the main source for the content in this document.
+
+\bibliography{references.bib}
 
 <!-- We can see this in action by plotting the Frobenius norm (the Euclidean norm for $pi$) of the difference between the true parameters and the estimates (the partial means) as $K$ increases---a lower Frobenius norm essentially means a more accurate estimate. -->
 <!-- ```{r} -->

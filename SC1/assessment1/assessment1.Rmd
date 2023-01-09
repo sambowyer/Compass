@@ -1,17 +1,17 @@
 ---
 title: "SC1 Assessment 1"
 author: "Sam Bowyer"
-date: "`r Sys.Date()`"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+set.seed(1)
 ```
 # Gibbs Sampling
 
 ## Introduction
-In the final week's content of this module we saw that we can use the Metropolis-Hastings algorithm to sample from some distribution $P(x)$ given a function $f$ proportional to its pdf and a proposal/jumping distribution $Q(x'|x)$ whose pdf $q(x'|x)$ we know and from which we can generate samples.
+In the final week's content of this module we saw that we can use the Metropolis-Hastings algorithm to sample from some distribution $P(x)$ given a function $f$ proportional to its pdf and a proposal/jumping distribution $Q(z|x)$ whose pdf $q(z|x)$ we know and from which we can generate samples.
 The key motivation behind this MCMC method is that $P$ may be a distribution for which sampling is generally difficult, but using this algorithm we only need to sample from $Q$, which we may choose to be something simple (often a Gaussian) from which we can easily sample.
 
 One problem that can arise, particularly in very high dimensions, is that of finding a suitable jumping distribution $Q$---choosing the wrong $Q$ (which can be especially difficult if the different dimensions behave differently to one another) can lead to slow mixing times, meaning you have to generate a large number of samples before they start to accurately approximate $P$.
@@ -25,34 +25,322 @@ Before we go into the details and implementation of Gibbs sampling, we will firs
 
 
 ## Metropolis-Hastings MCMC
-(can probably reuse a lot of the course website code)
-To simulate samples from target dist $P$ using a proposal dist $Q$ you need:
-1. a function $f$ proportional to $P$s pdf
-2. $Q(x'|x)$'s pdf $q(x')$
-3. The ability to sample $x' \sim Q(x'|x)$.
+Suppose we want to generate samples from a distribution $P(x)$ whose pdf is proportional to a function $f(x)$.
+Given a proposal distribution $Q(z|x)$ with pdf $q(z|x)$ the Metrolis-Hastings algorithm allows us to generate $k$ samples from $P_{\text{MH}}(x)$ via the following algorithm:
 
+1. Choose some arbitrary point $x_1$ to be the first sample.
+2. For each iteration $t$:
+  - Sample a candidate point $z \sim Q(\cdot|x)$.
+  - Calculate the acceptance ratio
+  \[\alpha_{\text{MH}}(x,z) = \min \left( 1, \frac{f(z)q(x|z)}{f(x)q(z|x)} \right)\]
+  With probability $\alpha_{\text{MH}}(x,z)$ accept the candidate and set $x_{t+1} = z$, otherwise set $x_{t+1} = x_t$.
+  
+In the code below we make the common choice of using a univariate Guassian centered at $x$ with some standard deviation $\sigma$ for our proposal distribution $Q(\cdot|x)$. (Note that since this choice of $Q$ is symmetric we can actually just calculate $\alpha_{\text{MH}}(x,z) = \min \left( 1, f(z)/f(x) \right)$, but we've left the full expression in the code so that it would be possible to add in non-symmetric proposal distributions.)
 
-### MCMC considerations
+```{r}
+# Do MH-MCMC
+normalProposal <- function(sigma){
+  Q <- list()
+  Q$sample <- function(x){
+    x + sigma*rnorm(1)
+  }
+  Q$density <- function(x,y){
+    dnorm(y-x, sd=sigma)
+  }
+  return(Q)
+}
 
-Burn in to discard early samples which may have been generated before the Markov chain stabilised to the stationary distribution $P$.
+runMH <- function(f, Q, x0, n){
+  q = Q$density
+  xs = rep(0, n)
+  x = x0
+  for(i in 1:n){
+    z = Q$sample(x)
+    alpha = min(1, f(z)*q(z,x)/(f(x)*q(x,z)))
+    if(runif(1)<alpha){
+      x = z
+    }
+    xs[i] = x
+  }
+  return(xs)
+}
+```
 
-Nearby samples are correlated---often solved by only actually taking every $n$th sample (so if we generate $k=10000000$ samples (after burn in), then we get 1000 (hopefully fairly uncorrelated) samples with $n=1000$).
+First we can check how well this fares at sampling from a standard univaritate normal target distribution.
+```{r}
+Q = normalProposal(1)
+xs = runMH(dnorm, Q, 0, 1000)
+plot(density(xs))
+vs = seq(-5,5,0.01)
+lines(vs, dnorm(vs), col="red")
+```
 
-when in high-dims, choosing the right jumping/proposal dist $Q$ can be v. difficult, so it may be better to consider how we'd tackle this problem using the conditional dists...->->->Gibbs sampling (thus instead of having to sample $Q$ from a v. high dimension once every time step, instead we sample many simpler conditional distributions every time step---this is particularly useful if each dim/variable is conditioned only on very few other dims/variables (e.g. in most hierarchical models))
+Clearly this has done fairly well, but by taking more samples we can even more accurately represent the target distribution.
+```{r}
+xs = runMH(dnorm, Q, 0, 100000)
+plot(density(xs))
+vs = seq(-5,5,0.01)
+lines(vs, dnorm(vs), col="red")
+```
 
-## Gibbs Sampler Details
-Algo in pseudocode/words w/ maths explanations of what's going on
+Or we can look at a more complicated distribution, here we use a $\text{Beta}(2,5)$ distribution. 
+(We have to be careful when using target distributions whose supports are not the entire real line (as was the case with the univariate Gaussian above). To avoid a divide-by-zero error when calculating $\alpha_{\text{MH}}$ we must ensure that $f(x_0)>0$.)
+```{r}
+Q = normalProposal(0.5)
+xs = runMH(function(x) dbeta(x, 2, 5), Q, 0.5, 1000)
+plot(density(xs))
+vs = seq(-1.5,1.5,0.01)
+lines(vs, dbeta(vs, 2, 5), col="red")
+```
 
-code
+Two final interesting cases are that of the uniform distribution on $[0,1]$ and the sum of two different univariate Guassians (note how we have changed the value of $\sigma$ for the different distributions in order to get good results each time).
+```{r}
+Q = normalProposal(0.25)
+xs = runMH(dunif, Q, 0.5, 100000)
+plot(density(xs))
+vs = seq(-1.5,1.5,0.01)
+lines(vs, dunif(vs), col="red")
+```
 
-## Example 1 (2D Guassian?)
-explain the two r.v.s and their conditional dists
+```{r}
+Q = normalProposal(0.5)
+f <- function(x) 0.5*(dnorm(x, -2, 1) + dnorm(x, 1, 0.3))
+xs = runMH(f, Q, 0.5, 100000)
+plot(density(xs))
+vs = seq(-10,10,0.01)
+lines(vs, f(vs), col="red")
+```
 
-plot samples over time (+ cumsum(x - mean(xs))) to see how it takes some time to stabilise -> implement burn in too
+### Some Considerations
+There are a few important things to note about the samples generated by the Metropolis-Hastings algorithm.
+Firstly, it can take some time before the samples begin to accurately represent the target distribution $P$, and so it is very common to discard the first few samples---called the burn-in period.
 
-check autocorrelation -> only sample every $n$th sample
+Secondly, whilst we'd like to use all samples produced by the algorithm, if we want independent samples from $P$ we shouldn't take samples that are too close to each other as they will be highly correlated.
+This can be seen by examining the autocorrelation function on our full set of generated functions, note that as the lag (x-axis) increases the correlation between samples that distance apart decreases.
+```{r}
+acf(xs, lag.max=250)
+```
 
-check mean/sd of marginals from the generated samples
+Only taking every, say, 100th generated sample (after the burn-in period of, say, 1000 samples) is known as *thinning*, and whilst it may be inefficient, it can give us more accurate, less correlated samples which is often worth it if we want to simulate independent samples.
 
-## Example 2 (higher dim?)
-i dunno, just more dims i guess
+<!-- See below for plots of the double-Gaussian samples with these considerations in mind. -->
+<!-- The top row show the samples without burn-in whilst the bottom removes the first 1000 samples. -->
+<!-- The left column uses every possible sample whilst the right column only uses every 100th sample. -->
+<!-- Notice that the  -->
+
+<!-- ```{r} -->
+<!-- n=11000 -->
+<!-- xs = runMH(f, Q, 0.5, n) -->
+
+<!-- par(mfrow=c(2,2)) -->
+<!-- plot(density(xs[1:1001]), xlim=c(-6,4), ylim=c(0, 0.65)) -->
+<!-- lines(vs, f(vs), col="red") -->
+
+<!-- plot(density(xs[(n-1999):(n-999)]), xlim=c(-6,4), ylim=c(0, 0.65)) -->
+<!-- lines(vs, f(vs), col="red") -->
+
+<!-- plot(density(xs[1001:2000]), xlim=c(-6,4), ylim=c(0, 0.65)) -->
+<!-- lines(vs, f(vs), col="red") -->
+
+<!-- plot(density(xs[seq(1001, n, 25)]), xlim=c(-6,4), ylim=c(0, 0.65)) -->
+<!-- lines(vs, f(vs), col="red") -->
+<!-- ``` -->
+
+One other consideration is that when $P$ is multivariate (particularly when it has a very high dimension), choosing the right jumping/proposal distribution $Q$ can be very difficult, so it may be better to consider how we'd tackle this problem using the conditional distributions.
+This leads us onto Gibbs sampling. 
+
+## Gibbs Sampling
+Suppose that we want to obtain $k$ samples of $\mathbf{x} = (x_1, ..., x_n)$ with a joint distribution $p(x_1, ..., x_n)$.
+First we must come up with an initial value $\mathbf{x}^{(0)} = (x_1^{(0)}, ..., x_n^{(0)})$, and then given the $t$th sample $\mathbf{x}^{(t)} = (x_1^{(t)}, ..., x_n^{(t)})$, to get the $(t+1)$th sample we perform the following:
+
+- Sample $x_1^{(t+1)}$ from the conditional distribution \[p(x_1^{(t+1)}|x_2^{(t)},...,x_n^{(t)}).\]
+- Sample $x_2^{(t+1)}$ from the conditional distribution \[p(x_2^{(t+1)}|x_1^{(t+1)}, x_3^{(t)}...,x_n^{(t)}).\]
+- Continue until every component of $\mathbf{x}^{(t+1)}$ has been sampled conditioned on the most recent values of all other components, that is, sample $x_i^{(t+1)}$ from 
+\[p(x_i^{(t+1)}| x_1^{(t+1)}, ..., x_{i-1}^{(t+1)}, x_{i+1}^{(t)}, ..., x_{n}^{(t)}).\]
+
+Thus instead of having to sample $Q$ from a very high dimension once every time step, instead we sample many simpler conditional distributions every time step---this is particularly useful if each component of $\mathbf{x}$ is conditioned only on very few other components (e.g. in most hierarchical models).
+We can see that in fact this basic version of Gibbs sampling is just a special case of the Metropolis-Hastings algorithm where we accept the new proposal every time, since, denoting $x^{(t)}_{-i} = x_1^{(t+1)}, ..., x_{i-1}^{(t+1)}, x_{i+1}^{(t)}, ..., x_{n}^{(t)}$ and our proposal $x_i^*$, the proposal distribution is $p(x_i^{(t+1)}|x^{(t)}_{-i})$ which leads to the acceptance ratio of 
+\[\begin{aligned}
+\alpha_{\text{MH}}(x,z) = \min \left( 1, \frac{f(z)q(x|z)}{f(x)q(z|x)} \right)
+&= \min \left( 1, \frac{p(x_i^*,x^{(t)}_{-i})p(x_i^{(t)}|x^{(t)}_{-i})}{p(x_i^{(t)},x^{(t)}_{-i})p(x_i^*|x^{(t)}_{-i})} \right) \\
+&= \min \left( 1, \frac{p(x_i^*|x^{(t)}_{-i})p(x^{(t)}_{-i})p(x_i^{(t)}|x^{(t)}_{-i})}{p(x_i^{(t)}|x^{(t)}_{-i})p(x^{(t)}_{-i})p(x_i^*|x^{(t)}_{-i})} \right) \\
+&= \min(1,1)\\
+&= 1.
+\end{aligned}\]
+```{r}
+runGibbs <- function(conditionals, x0, k){
+  n = length(conditionals)
+  
+  # We will output the samples as a matrix where each row
+  # represents one sample from the joint distribution
+  xs = matrix(rep(0, n*(k+1)), nrow=(k+1))
+  x = x0
+  
+  for (t in 2:(k+1)){
+    xs[t, 1] = conditionals[[1]](xs[t-1, 2:n])
+    
+    if (n > 2){
+      for (i in 2:(n-1)){ 
+        xs[t, i] = conditionals[[i]](c(xs[t, 1:(i-1)], xs[t-1, (i+1):n]))
+      }
+    }
+    
+    xs[t, n] = conditionals[[n]](xs[t, 1:(n-1)])
+  }
+  return(xs[2:(k+1),])
+}
+```
+
+### Example 1 - Bivariate Gaussian
+In the bivariate case we can assign the first component as $X$ and the second as $Y$, at which point Gibbs sampling is simply the procedure of alternately sampling from $p(Y^{(t)}|X^{(t)})$ and $p(X^{(t+1)}|Y^{(t)})$ (given some initial $X^{(0)}$---we can sample $Y^{(0)}$ using this, however, in keeping with the more general code we've written above, we will supply both $X^{(0)}$ and $Y^{(0)}$ to our Gibbs sampler) to create a sequence of pairs $(X^{(0)}, Y^{(0)}), (X^{(1)}, Y^{(1)}), ...$ forming a Markov chain with stationary distribution $p(X,Y)$.
+
+Here we consider the case where $(X,Y)$ is distributed as a bivariate normal, each with 0 mean and unit variance, but with a correlation $\rho = 0.6$.
+This leads to the conditional distributions:
+\[X | Y \sim \mathcal{N}(\rho Y, \sigma)\]
+\[Y | X \sim \mathcal{N}(\rho X, \sigma)\]
+where $\sigma = \sqrt{1-\rho^2}$.
+
+```{r}
+rho = 0.6
+sigma = sqrt(1-rho^2)
+
+x_given_y <- function(y) rnorm(1, rho*y, sigma)
+y_given_x <- function(x) rnorm(1, rho*x, sigma)
+
+samples = runGibbs(c(x_given_y, y_given_x), c(0,0), 5000) 
+plot(samples[,1], samples[,2])
+```
+
+```{r}
+c(mean(samples[,1]), mean(samples[,2])); c(sd(samples[,1]), sd(samples[,2]))
+cor(samples[,1], samples[,2])
+```
+We can see that the means and standard deviations of the samples of $X$ and $Y$ are close to the true values, as is the correlation between the two.
+
+Note that we also get similar results if we use our Metropolis-Hastings algorithm to form the conditional distributions, however, this is significantly improved when we include a burn in period of 100 rather than 10 (even though the longer burn-in period will be worse for efficiency).
+
+```{r}
+Q = normalProposal(0.25)
+x_given_y <- function(y) runMH(function(x) dnorm(x, rho*y, sigma), Q, y, 11)[11]
+y_given_x <- function(x) runMH(function(y) dnorm(y, rho*x, sigma), Q, x, 11)[11]
+
+samples = runGibbs(c(x_given_y, y_given_x), c(0,0), 5000) 
+plot(samples[,1], samples[,2])
+```
+
+```{r}
+c(mean(samples[,1]), mean(samples[,2])); c(sd(samples[,1]), sd(samples[,2]))
+cor(samples[,1], samples[,2])
+```
+
+Now with a 100-sample burn-in period we see much better results in the plot, sample mean, standard deviation and correlation coefficient.
+```{r}
+x_given_y <- function(y) runMH(function(x) dnorm(x, rho*y, sigma), Q, y, 101)[101]
+y_given_x <- function(x) runMH(function(y) dnorm(y, rho*x, sigma), Q, x, 101)[101]
+
+samples = runGibbs(c(x_given_y, y_given_x), c(0,0), 5000) 
+plot(samples[,1], samples[,2])
+```
+
+```{r}
+c(mean(samples[,1]), mean(samples[,2])); c(sd(samples[,1]), sd(samples[,2]))
+cor(samples[,1], samples[,2])
+```
+
+## Example 2 - Hierarchical Model
+The final example we will discuss is that of a Bayesian hierarchical model, for which it is very common to use Gibbs sampling.
+Specifically, suppose we have the data $y_1,...,y_n$ giving us the number of failures of $n$ pieces of equipment, along with the times $t_i$ at which each piece of equipment was observed. 
+We want to model with a Poisson likelihood where the $i$th piece of equipment has $\lambda_i$ expected number of failures.
+This likelihood is 
+\[\prod_{i=1}^n \text{Poisson}(\lambda_i t_i)\]
+(note that we're scaling the expected number of failures by the observation times).
+Next suppose that we put an (improper---in that it doesn't integrate to 1) prior on each $\lambda_i$:
+\[\lambda_i \sim \text{Gamma}(\alpha, \beta)\]
+with $\alpha=1.5$, and let us put the following hyperprior on $\beta$:
+\[\beta \sim \text{Gamma}(\gamma, \delta)\]
+with $\gamma=0.02$ and $\delta=1.1$.
+Hence we have $n+1$ unknown parameters ($\lambda_1, ..., \lambda_n, \beta$) with the posterior
+\[p(\lambda, \beta |\mathbf{y}, \mathbf{t}) = \prod_{i=1}^n \text{Poisson}(\lambda_i t_i) \text{Gamma}(\alpha, \beta) \text{Gamma}(\gamma, \delta).\]
+This leads to the following conditional distributions which we will use in our Gibbs sampler (we denote $\lambda_{-i} = (\lambda_1, .., \lambda_{i-1}, \lambda_{i+1}, ..., \lambda_{n})$):
+
+\[p(\lambda_i | \lambda_{-i}, \beta, \mathbf{y}, \mathbf{t}) = \text{Gamma}(y_i + \alpha, t_i + \beta) \]
+\[p(\beta | \lambda, \mathbf{y}, \mathbf{t}) = \text{Gamma}(n\alpha + \gamma, \delta + \sum_{i=1}^n \lambda_i).\]
+
+First we shall generate some data $\mathbf{y}, \mathbf{t}$ with $n=9$ with the true value of $\beta$ set to 0.005 and with the observation times given as
+\[\mathbf{t} = (t_1, ..., t_9) = (2.4, 2.1, 3.2, 6, 1.9, 4.4, 9.1, 5.2, 4).\]
+
+```{r}
+# known values
+n = 9
+alpha = 1.8
+gamma = 0.01
+delta = 1
+
+ts = c(2.4, 2.1, 3.2, 6, 1.9, 4.4, 9.1, 5.2, 4)
+ts = 1:9
+
+# true values to be estimated
+beta = 2
+lambdas = rgamma(9, alpha, rate=beta)
+lambdas
+
+# generate data y
+ys = rep(0, n)
+for (i in 1:n){
+  ys[i] = rpois(1, lambdas[i]*ts[i])
+}
+```
+
+Now we can implement sampling from the conditional distributions.
+```{r}
+lambdaConditional <- function(paramEstimates, num) {
+  force(num)
+  print(num)
+  betaEstimate = paramEstimates[length(paramEstimates)]
+  rgamma(1, ys[num]+alpha, ts[num]+betaEstimate)
+}
+
+betaConditional <- function(paramEstimates) {
+  lambdasEstimate = paramEstimates[-length(paramEstimates)]
+  rgamma(1, n*alpha + gamma, delta + sum(lambdasEstimate))
+}
+```
+
+Finally we can implement Gibbs sampling and see how well the samples line up with the true values of the parameters $\lambda_1, ..., \lambda_9, \beta$.
+```{r}
+k = 10
+conditionals = c()
+for (i in 1:n){
+  print(i)
+  f <- function(xs) {force(i); lambdaConditional(xs, i)}
+  conditionals = c(conditionals, f)
+}
+conditionals = c(conditionals, betaConditional)
+conditionals = c(function(xs) lambdaConditional(xs, 1),
+                 )
+samples = runGibbs(conditionals, c(ys/ts, 2), k) 
+
+paramNames = c()
+for (i in 1:n){
+  paramNames = c(paramNames, paste("lambda", i))
+}
+paramNames = c(paramNames,"beta")
+
+trueParams = c(lambdas, beta)
+
+results = cbind(trueParams, apply(samples, 2, mean), apply(samples, 2, sd))
+dimnames(results)=list(paramNames, c("true value", "sample mean", "sample sd"))
+results
+
+accepted = seq(1,k, 1000)
+accepted=1:k
+samples = samples[accepted,]
+
+# par(mfrow=c(5,2), mar=c(2,2,2,2))
+for (i in 1:n){
+  plot(accepted, samples[,i], xlab="iteration", ylab=paste("lambda", i), ylim=c(0,5), type="l")
+  abline(h=lambdas[i], col="red")
+}
+plot(accepted, samples[,n+1], xlab="iteration", ylab="beta", ylim=c(0,4), type="l")
+abline(h=beta, col="red")
+```
