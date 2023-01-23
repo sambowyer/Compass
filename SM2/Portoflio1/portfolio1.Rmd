@@ -1,0 +1,64 @@
+---
+title: "Principal Component Analysis"
+author: "Sam Bowyer"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Task 1
+First we shall load the `USArrests` dataset and extract the three features of interest.
+```{r}
+data(USArrests)
+X0 = USArrests[, c("Murder", "Assault", "Rape")]
+head(X0)
+```
+
+Next we must center the data.
+```{r}
+X0 = as.matrix(X0)
+n = nrow(X0)
+p = ncol(X0)
+C = diag(n) - matrix(rep(1/n,n*n), n)
+X = C %*% X0
+```
+
+We can quickly check that indeed each feature now has zero mean (or at least very close to zero because of unavoidable floating point errors).
+```{r}
+mean(X[,"Murder"]); mean(X[,"Assault"]); mean(X[,"Rape"])
+```
+
+Now we may find the principal components by calculating the covariance matrix and performing a spectral decomposition to obtain the eigenvalues and eigenvectors.
+```{r}
+# Covariance matrix
+S = t(X) %*% X
+
+# Spectral decomposition
+decomp = eigen(S)
+decomp
+
+A = decomp$vectors
+lambda = decomp$values
+
+Y = X %*% A
+```
+
+Now we can see that the principal components are given by the columns of `Y` (in order from left to right).
+```{r}
+head(Y)
+```
+
+To plot the two-dimensional reduction of the dataset we can simply use the first two columns of $Y$.
+```{r}
+plot(Y[,1], Y[,2])
+```
+
+Equivalently, PCA can be seen as projecting the original dataset onto the linear subspace spaned by the columns of `A`, which we can show by multiplying `X` and `A'` (where `Y'` only contains the first two columns of `A`, i.e. the first two principle components of `X`).
+```{r}
+X_reduction = X %*% A[,1:2]
+plot(X_reduction[,1], X_reduction[,2])
+```
