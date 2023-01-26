@@ -1,14 +1,16 @@
 ---
 title: "Principal Component Analysis"
 author: "Sam Bowyer"
-date: "`r Sys.Date()`"
+date: '`r Sys.Date()`'
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+set.seed(0)
 ```
 ## Task 1
 First we shall load the `USArrests` dataset and extract the three features of interest.
@@ -32,22 +34,25 @@ We can quickly check that indeed each feature now has zero mean (or at least ver
 mean(X[,"Murder"]); mean(X[,"Assault"]); mean(X[,"Rape"])
 ```
 
-Now we may find the principal components by calculating the covariance matrix and performing a spectral decomposition to obtain the eigenvalues and eigenvectors.
+Now we can find the principal components by calculating the covariance matrix and performing a spectral decomposition to obtain the eigenvalues and eigenvectors.
 ```{r}
 # Covariance matrix
-S = t(X) %*% X
+S = (1/n) * (t(X) %*% X)
 
 # Spectral decomposition
 decomp = eigen(S)
 decomp
-
+```
+The vectors here show us the loadings of each PC (if we take the absolute value of each entry).
+I particular we see that the first principal component mainly takes into account the value of the assault in each state, with slightly more importance on rape than murder, whereas the second PC mainly focuses on rape and the third on murder, with close (but small) loadings on assault and rape.
+```{r}
 A = decomp$vectors
 lambda = decomp$values
 
 Y = X %*% A
 ```
 
-Now we can see that the principal components are given by the columns of `Y` (in order from left to right).
+The principal components are given by the columns of `Y` (in order from left to right).
 ```{r}
 head(Y)
 ```
@@ -57,8 +62,97 @@ To plot the two-dimensional reduction of the dataset we can simply use the first
 plot(Y[,1], Y[,2])
 ```
 
-Equivalently, PCA can be seen as projecting the original dataset onto the linear subspace spaned by the columns of `A`, which we can show by multiplying `X` and `A'` (where `Y'` only contains the first two columns of `A`, i.e. the first two principle components of `X`).
+However, noting that the three variables are on different scales, i.e. mostly on different orders of magnitude, we will instead perform and analyse PCA with the correlation matrix `R` rather than the covariance matrix.
+We do this with the `prcomp` command in `R` with the parameter `scale=TRUE`, which scales the data to have unit variance, therefore allowing us to use the correlation matrix, computing the spectral decomposition as $R = S\Lambda S^T$ where $\Lambda = \text{diag}(\lambda_1, \lambda_2, \lambda_3)$ gives us the eigenvalues of $R$ and where the columns of $S$ give us the eigenvectors of $R$.
 ```{r}
-X_reduction = X %*% A[,1:2]
-plot(X_reduction[,1], X_reduction[,2])
+pcr = prcomp(X, scale=TRUE, retx=TRUE)
+```
+This returns three objects: `pcr$sdev`, `pcr$rotation` and `pcr$x` (the last of these only returned because we called `prcomp` with the parameter `retx=TRUE`).
+The first of these gives us the standard deviations of the eigenvalues of the correlation matrix (i.e. the square root of the variances), the second gives us the loadings of each principal component such that each column is a PC and the final object `pcr$x` gives us the rotated data, $Y$, which we may truncate by only plotting the first two dimensions.
+```{r}
+# Square root of correlation matrix eigenvalues
+pcr$sdev
+# Principal components
+pcr$rotation
+```
+We can see that using the correlation matrix rather than the covariance matrix for PCA has greatly affected the loadings of each of our principal components. 
+Whereas before each PC was dominated by one of the three variables, the loadings are much more evenly spread now.
+In particular, the first principal component has very similar loadings for each of the variables, indicating that higher arrests in one of the categories suggest higher arrests in the other two (with especially similar loadings for murder and assault). 
+The second PC then has a much heavier loading on the rape variable and a slightly less heavy loading on assault, with very little coming from assault, whilst the third PC has a loading dominated by assault and murder with a small loading on rape.
+
+```{r}
+# Plot the rotated data with the projections of the variables
+library(ggfortify)
+rownames(pcr$x) <- rownames(USArrests)
+autoplot(pcr, label=T, label.size=2, loadings=T, loadings.label=T, loadings.label.size=3, shape=F) +
+  theme(text=element_text(size=8))
+```
+
+To decide on the number of dimensions $q$ to keep we will first make a scree plot:
+```{r}
+library(latex2exp)
+plot(1:3, pcr$sdev^2, ylab=TeX(r'($\lambda_i$)'), xlab="i")
+```
+This shows that the first principal component accounts for the vast majority of the variance in the dataset, suggesting that we should reduce the dimensionality to $q=1$, however, we shall confirm this intuition by calculating $q_k$ (via Kaiser's criterion) and $q_H^{(M)}$ as well.
+```{r}
+# Kaiser's criterion
+meanLambda = mean(pcr$sdev^2)
+q_k = 0
+for (j in 1:3){
+  if (pcr$sdev[j]^2 > meanLambda){
+    q_k = j
+  } else{
+    break # since lambda_{i+1} <= lambda_i
+  }
+}
+q_k
+
+# Horn's parallel analysis
+S = cor(X)
+D = diag(S)
+D_sqrt = diag(sqrt(D))
+M = 10000
+eigenvalues = matrix(rep(0,M*p), nrow=M)
+for (m in 1:M){
+  X_m = matrix(rnorm(n*p), nrow=n, ncol=p)
+  R_m = cor(X_m)
+  S_m = D_sqrt %*% R_m %*% D_sqrt
+  eigenvalues[m,] = eigen(S_m)$values
+}
+meanLambdas = apply(eigenvalues, 2, mean)
+q_H = 0
+for (j in 1:3){
+  if (pcr$sdev[j]^2 > meanLambdas[j]){
+    q_H = j
+  }
+}
+q_H
+```
+Since we've obtained (with $M=10000$) that $q_k = q_H^{(M)} = 1$, which is consistent with our intuition from the scree plot, this confirms our belief that we should reduce the dimensionality of the dataset to $q=1$ by considering only the first principal component, which explains $78.6\%$ of the variance in the dataset (even though adding the second principal component would take that figure up to $93.9\%$).
+```{r}
+eigenvalues = pcr$sdev^2
+
+# Variance explained by PC1
+eigenvalues[1]/sum(eigenvalues)
+
+# Variance explained by PC1 & PC2
+(eigenvalues[1]+eigenvalues[2])/sum(eigenvalues)
+```
+
+## Task 2
+For this task we'll perform PCA on the `IRIS` dataset of flowers using the covariance matrix rather than the correlation matrix since the variables are largely on the same scale already.
+```{r}
+data(iris)
+head(iris)
+```
+We'll perform PCA using the `prcomp` function again with `scale=FALSE` (as it is by default) to use the covariance matrix. (Note also that `prcomp` centers the data for us witht the parameter `center=TRUE`).
+```{r}
+# Remove the species from the data when performing PCA
+X = iris[,1:4]
+
+prcomp(X, center=TRUE, retx=TRUE)
+
+rownames(pcr$x) <- rownames(iris)[1:4]
+autoplot(pcr, label=T, label.size=2, loadings=T, loadings.label=T, loadings.label.size=3, shape=F) +
+  theme(text=element_text(size=8))
 ```
