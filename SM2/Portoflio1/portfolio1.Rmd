@@ -43,13 +43,14 @@ S = (1/n) * (t(X) %*% X)
 decomp = eigen(S)
 decomp
 ```
-The vectors here show us the loadings of each PC (if we take the absolute value of each entry).
-I particular we see that the first principal component mainly takes into account the value of the assault in each state, with slightly more importance on rape than murder, whereas the second PC mainly focuses on rape and the third on murder, with close (but small) loadings on assault and rape.
+The column vectors here show us the loadings of each PC (if we take the absolute value of each entry).
+In particular we see that the first principal component mainly takes into account the value of the assault in each state, with slightly more importance on rape than murder, whereas the second PC mainly focuses on rape and the third on murder, with close (but small) loadings on assault and rape.
 ```{r}
 A = decomp$vectors
 lambda = decomp$values
 
 Y = X %*% A
+rownames(Y) <- rownames(USArrests)
 ```
 
 The principal components are given by the columns of `Y` (in order from left to right).
@@ -59,21 +60,23 @@ head(Y)
 
 To plot the two-dimensional reduction of the dataset we can simply use the first two columns of $Y$.
 ```{r}
-plot(Y[,1], Y[,2])
+library(ggfortify)
+autoplot(Y[,1:2], geom="point", label=T, label.size=2, shape=F, xlab="PC1", ylab="PC2") +
+  theme(text=element_text(size=8))
 ```
 
 However, noting that the three variables are on different scales, i.e. mostly on different orders of magnitude, we will instead perform and analyse PCA with the correlation matrix `R` rather than the covariance matrix.
-We do this with the `prcomp` command in `R` with the parameter `scale=TRUE`, which scales the data to have unit variance, therefore allowing us to use the correlation matrix, computing the spectral decomposition as $R = S\Lambda S^T$ where $\Lambda = \text{diag}(\lambda_1, \lambda_2, \lambda_3)$ gives us the eigenvalues of $R$ and where the columns of $S$ give us the eigenvectors of $R$.
+We do this with the `prcomp` command in `R` with the parameter `scale=TRUE`, which scales the data to have unit variance, therefore allowing us to use the correlation matrix, computing the spectral decomposition as $R = B\Lambda B^T$ where $\Lambda = \text{diag}(\lambda_1, \lambda_2, \lambda_3)$ gives us the eigenvalues of $R$ and where the columns of $B$ give us the eigenvectors of $R$.
 ```{r}
-pcr = prcomp(X, scale=TRUE, retx=TRUE)
+pca = prcomp(X, scale=TRUE, retx=TRUE)
 ```
-This returns three objects: `pcr$sdev`, `pcr$rotation` and `pcr$x` (the last of these only returned because we called `prcomp` with the parameter `retx=TRUE`).
-The first of these gives us the standard deviations of the eigenvalues of the correlation matrix (i.e. the square root of the variances), the second gives us the loadings of each principal component such that each column is a PC and the final object `pcr$x` gives us the rotated data, $Y$, which we may truncate by only plotting the first two dimensions.
+This returns three objects: `pca$sdev`, `pca$rotation` and `pca$x` (the last of these only returned because we called `prcomp` with the parameter `retx=TRUE`).
+The first of these gives us the standard deviations of the eigenvalues of the correlation matrix (note that we will then need to square them later when analysing variances), the second gives us the loadings of each principal component such that each column is a PC and the final object `pca$x` gives us the rotated data, $Y$, which we may truncate by only plotting the first two dimensions.
 ```{r}
 # Square root of correlation matrix eigenvalues
-pcr$sdev
+pca$sdev
 # Principal components
-pcr$rotation
+pca$rotation
 ```
 We can see that using the correlation matrix rather than the covariance matrix for PCA has greatly affected the loadings of each of our principal components. 
 Whereas before each PC was dominated by one of the three variables, the loadings are much more evenly spread now.
@@ -82,24 +85,25 @@ The second PC then has a much heavier loading on the rape variable and a slightl
 
 ```{r}
 # Plot the rotated data with the projections of the variables
-library(ggfortify)
-rownames(pcr$x) <- rownames(USArrests)
-autoplot(pcr, label=T, label.size=2, loadings=T, loadings.label=T, loadings.label.size=3, shape=F) +
+rownames(pca$x) <- rownames(USArrests)
+autoplot(pca, label=T, label.size=2, loadings=T, loadings.label=T,
+         loadings.label.size=3, loadings.label.vjust = 1.8, shape=F) +
   theme(text=element_text(size=8))
 ```
 
 To decide on the number of dimensions $q$ to keep we will first make a scree plot:
 ```{r}
 library(latex2exp)
-plot(1:3, pcr$sdev^2, ylab=TeX(r'($\lambda_i$)'), xlab="i")
+plot(1:3, pca$sdev^2, ylab=TeX(r'($\lambda_i$)'), xlab="i", main="Scree Plot for the USArrests Dataset")
 ```
-This shows that the first principal component accounts for the vast majority of the variance in the dataset, suggesting that we should reduce the dimensionality to $q=1$, however, we shall confirm this intuition by calculating $q_k$ (via Kaiser's criterion) and $q_H^{(M)}$ as well.
+
+This shows that the first principal component accounts for the vast majority of the variance in the dataset, suggesting that we should reduce the dimensionality to $q=1$, however, we shall confirm this intuition by calculating $q_k$ (via Kaiser's criterion) and $q_H^{(M)}$ (via Horn's parallel analysis) as well.
 ```{r}
 # Kaiser's criterion
-meanLambda = mean(pcr$sdev^2)
+meanLambda = mean(pca$sdev^2)
 q_k = 0
 for (j in 1:3){
-  if (pcr$sdev[j]^2 > meanLambda){
+  if (pca$sdev[j]^2 > meanLambda){
     q_k = j
   } else{
     break # since lambda_{i+1} <= lambda_i
@@ -122,7 +126,7 @@ for (m in 1:M){
 meanLambdas = apply(eigenvalues, 2, mean)
 q_H = 0
 for (j in 1:3){
-  if (pcr$sdev[j]^2 > meanLambdas[j]){
+  if (pca$sdev[j]^2 > meanLambdas[j]){
     q_H = j
   }
 }
@@ -130,7 +134,7 @@ q_H
 ```
 Since we've obtained (with $M=10000$) that $q_k = q_H^{(M)} = 1$, which is consistent with our intuition from the scree plot, this confirms our belief that we should reduce the dimensionality of the dataset to $q=1$ by considering only the first principal component, which explains $78.6\%$ of the variance in the dataset (even though adding the second principal component would take that figure up to $93.9\%$).
 ```{r}
-eigenvalues = pcr$sdev^2
+eigenvalues = pca$sdev^2
 
 # Variance explained by PC1
 eigenvalues[1]/sum(eigenvalues)
@@ -145,14 +149,85 @@ For this task we'll perform PCA on the `IRIS` dataset of flowers using the covar
 data(iris)
 head(iris)
 ```
-We'll perform PCA using the `prcomp` function again with `scale=FALSE` (as it is by default) to use the covariance matrix. (Note also that `prcomp` centers the data for us witht the parameter `center=TRUE`).
+We'll perform PCA using the `prcomp` function again with `scale=FALSE` (as it is by default) to use the covariance matrix. (Note also that `prcomp` centers the data for us with the parameter `center=TRUE`.)
 ```{r}
 # Remove the species from the data when performing PCA
 X = iris[,1:4]
 
-prcomp(X, center=TRUE, retx=TRUE)
+pca = prcomp(X, center=TRUE, retx=TRUE)
 
-rownames(pcr$x) <- rownames(iris)[1:4]
-autoplot(pcr, label=T, label.size=2, loadings=T, loadings.label=T, loadings.label.size=3, shape=F) +
+autoplot(pca, data=iris, colour="Species", loadings=T, loadings.label=T,
+         loadings.label.size=3, loadings.label.vjust = 1.8, shape="Species")  +
   theme(text=element_text(size=8))
 ```
+
+The PCA has successfully separated the data points by their species: setosa being the most distinct group and with some slight overlap between the versicolor and virginica clusters. 
+Usefully, by plotting this 2D projection we see that the petal width and petal length are highly related as their projections follow the same direction from the origin, but with petal length larger in magnitude than petal width.
+In particular, petal width and petal length have relatively large loadings in the first principal component but small loadings in the second principal component, whereas sepal width and sepal length both have larger loadings in PC2 than PC1.
+This make sense since the two pairs of variables represent measurements on different parts of the plants.
+```{r}
+pca$rotation
+```
+It is also important to note here that the first prinicipal component accounts for almost all (92.46%) of the total variance in the dataset, meaning that it would most likely be sensible to choose $q=1$ as the dimensionality of a PCA reduction performed on this data.
+
+## Task 3
+For this task, we'll perform principal component regression on the `Communities and Crime` dataset (from the `R` package `mogavs`) using the package `pls`.
+This dataset contains 122 predictive attributes and one target attribute---representing the number of violent crimes in an area per population---with 1994 samples each.
+We'll split the data into a training set of size 1595 and a test set of size 399 for a roughly 80/20 training/test split.
+```{r}
+library(mogavs)
+data(crimeData)
+```
+
+```{r}
+dim(crimeData)
+
+trainIdx = sample(nrow(crimeData), 1595)
+train = crimeData[trainIdx,]
+test  = crimeData[-trainIdx,]
+
+x_test = test[,1:122]
+y_test = test[,123]
+```
+
+We'll fit a linear regression model using cross-validation with 10 random splits, as well as using the correlation matrix rather than the covariance matrix for the PCA (by setting `scale=TRUE`) since some of the input attributes are on different scales (for example there contains information on the age of residents in an area and also information on rent prices).
+We can then use the `explvar` command to make a scree plot of the PCA reduction.
+```{r}
+library(pls)
+model = pcr(y~., data=train, scale=TRUE, validation="CV")
+plot(1:122, explvar(model), ylab=TeX(r'($\lambda_i$)'), xlab="i", main="Scree Plot for the CrimeData Dataset")
+```
+
+This indicates that we can probably pick a reduction of dimension $1 \leq q \leq 20$ and still represent a decent proportion of the variance in the dataset, however, we'll analyse the mean squared error (MSE) of test set predictions using various values of $q_\eta$ for $\eta \in (0,1)$ where (with $p=122$):
+\[q_\eta = \min \left( j: \sum_{k=1}^j \lambda_k / \sum_{k=1}^p > \eta \right).\]
+```{r}
+errs = rep(0,122)
+for (k in 1:122){
+  y_pred = predict(model, x_test, ncomp=k)
+  errs[k] = mean((y_pred - y_test)^2)
+}
+
+etas = cumsum(explvar(model))/100
+df = data.frame(x=etas, y=errs)
+ggplot(df, aes(x=x, y=y)) + ylab("MSE") + xlab(TeX(r'($\eta$)')) +
+  ggtitle(TeX(r'(MSE on Test Set vs. $\eta$)')) + geom_step()
+```
+
+In the above plot, each vertical plot represents the inclusion of the next principal component.
+We see that each of the first eight principal components give us a significant reduction in error, with an MSE of 0.022 for $q_\eta = 8$ (which is the case for approximately $0.683 \leq \eta < 0.710$) compared to 0.025 for $q_\eta = 7$.
+<!-- (which is the case for $ a < \eta \leq b$). -->
+```{r}
+# Find MSE for q=7 and q=8
+errs[7]; errs[8];
+
+# Find smallest eta such that q=8 and q=9
+etas[8]; etas[9]
+```
+However, after the eighth principal component, adding more to the reduction doesn't lead to a significant improvement in the error until we approach $\eta=1$ at which point we start seeing an increase in error when adding certain PCs that lead to overfitting.
+<!-- # ```{r} -->
+<!-- # plot(1:122, c(0,diff(errs))) -->
+<!-- # ``` -->
+Therefore in order to minimise the predictive error whilst sufficiently reducing the dimensionality of the data we should choose $q=8$, which still allows us to express 68.3% of the total variance in the dataset (adding the 9th PC would only take us up to 71.0%).
+```{r}
+# Total variance explained by first 8 PCs (equivalent to etas[8])
+sum(explvar(model)[1:8])
