@@ -1,0 +1,198 @@
+---
+title: "Factor Analysis and Independent Component Analysis"
+author: "Sam Bowyer"
+date: "`r Sys.Date()`"
+output: pdf_document
+bibliography: references.bib
+header-includes: 
+  - \bibliographystyle{plain}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+set.seed(1)
+```
+
+## Task 1
+For the first task we will use the dataset `mtcars` which contains 11 values for each of 32 different types of car.
+```{r}
+data(mtcars)
+head(mtcars)
+```
+
+<!-- mydata = mtcars -->
+<!-- library(nFactors) -->
+<!-- ev <- eigen(cor(mydata)) # get eigenvalues -->
+<!-- ap <- parallel(subject=nrow(mydata),var=ncol(mydata), -->
+<!--   rep=100,cent=.05) -->
+<!-- nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea) -->
+<!-- plotnScree(nS) -->
+
+We can first identify a suitable choice for the number of components to use using the `factanal` function, which performs maximum-likelihood factor analysis on our dataset,
+From this we can obtain the p-value of a test on the hypothesis that $k$ factors are suitable for representing the data with the factor analysis model.
+```{r}
+factanal(mtcars, factors = 1)$PVAL
+factanal(mtcars, factors = 2)$PVAL
+factanal(mtcars, factors = 3)$PVAL
+```
+
+We see that $k=3$ is the lowest $k$ with a p-value above 5\%, suggesting it would be a suitable choice for the number of factors, but we can further justify this by considering the total variance explained by $k$ factors as $k$ ranges from 1 to 6 (`factanal` breaks down for $k>6$ on `mtcars` due to insufficient number of free parameters: if $k=7$ then $\Delta_{k,p} = \frac{(p-k)^2}{2} - \frac{(p+k)}{2} =  \frac{(11-7)^2}{2} - \frac{(11+7)}{2} = 8 - 9 = -1$).
+```{r}
+vars = rep(0,6)
+for (i in 1:6){
+  loadings = factanal(mtcars, factors=i)$loadings
+  varsPerVariable = colSums(loadings^2)/nrow(loadings)
+  vars[i] = sum(varsPerVariable)
+}
+plot(1:6, vars, xlab="k", ylab="Proportion of Variance Explained")
+```
+
+Whilst we do see higher amounts of variance explained for $k \geq 4$ than $k=3$, the significant increase for $k=3$ compared to $k=1$ and $k=2$ reinforces the idea that it would be suitable to use three components in our model in order to reduce the dimensionality of our data.
+This leads to $\Delta_{k,p} = \frac{(p-k)^2}{2} - \frac{(p+k)}{2} =  \frac{(11-3)^2}{2} - \frac{(11+3)}{2} = 32 - 7 = 25$. 
+As this value is positive we must then look for an approximate solution, since there are more constraints than free parameters.
+
+We will be using the iterated principal factor analysis algorithm via the `fapa` command, which requires the correlation matrix of our data as input along with $k$ (`numFactors`) and the method for calculating the initial communality values---we choose the default option of `SMC` where (as explained in the function's documentation) "Initial communalities are estimated by taking the squared multiple correlations of each indicator after regressing the indicator on the remaining variables. The following equation is employed to find the squared multiple correlation: $1-1/\text{diag}(R^{-1})$" \cite{giordano_casey_r_nodate}.
+Since the communalities are given by the diagonals of $\Lambda \Lambda^T = R - \Psi$, this then tells us that the initial specific variances are given by $\hat{\Psi}^{(0)} = 1/\text{diag}(R^{-1})$.
+
+```{r}
+library(fungible)
+R = cor(mtcars)
+model = fapa(R, numFactors=3, communality="SMC")
+```
+
+This then gives us the following estimates for the loading matrix $\hat{\Lambda}$ and specific variances $\{\hat{\psi}_{jj}\}_{j=1}^p$.
+```{r}
+loadings = model$loadings
+rownames(loadings) = colnames(mtcars)
+loadings
+
+specificVars = diag(cov(mtcars)) - model$h2
+specificVars
+```
+
+To aid interpretability, we will consider the varimax-rotated loadings.
+```{r}
+loadings = varimax(loadings)$loadings
+loadings
+```
+
+Recalling that this model leads to the approximation of data points $x_i \approx \hat{\lambda}_{(1)} \hat{f}_{i1} + \hat{\lambda}_{(2)} \hat{f}_{i2} + \hat{\lambda}_{(3)} \hat{f}_{i3}$ we might interpret the first factor as relating to the general size/strength of the car's engine since all of the negative loadings in the first column occur for variables where (roughly speaking) a larger value might suggest a larger engine/car (number of cylinders `cyl`, displacement `disp`, gross horsepower `hp`, weight `wt` and number of gears/carburetors `gear`/`carb`) whereas we see positive values for miles per gallon `mpg` and quarter-mile time `qsec` where a smaller value might suggest a larger engine/car. 
+This is further supported by the fact that the loadings in the first column for the rear axle ratio `drat` and automatic/manual transmission type `am` have are very small as they aren't strong indicators of a car's size/strength.
+(The blank values indicate that the values are between $-0.1$ and $0.1$.)
+```{r}
+# The loadings shown as blank in the previous output block have absolute values < 0.1
+c(loadings["drat",1], loadings["am",1], loadings["carb",2], loadings["gear",3])
+```
+Interpreting the second and third factors is slightly trickier.
+The second has loadings of opposite sign compared to the first factor with the exception of the rear axle ratio `drat`, quarter-mile time `qsec`, transmission type `am` and number of carburetors `carb` (although this last loading is very small.
+These differences could be seen as refining the distinctions made between 'larger/stronger' cars in the first factor based on the previously unimportant variables like `drat` and `am`.
+The third factor has somewhat similar pattern of loading to the first factor and so represents a similar set of characteristics with some further refinement.
+
+We can calculate our approximations to these factors using the linear regression model suggested in the notes, giving the following (with a generalised least squares estimate of the regression coefficients):
+```{r}
+psi = diag(specificVars)
+A = solve(t(loadings) %*% solve(psi) %*% loadings) %*% t(loadings) %*% solve(psi)
+A
+f = A %*% t(mtcars)
+rownames(f) = c("f1","f2", "f3")
+t(f)
+```
+
+### 2D Comparison to PCA
+Now we will do the same factor analysis on the `mtcars` dataset but with $k=2$ and compare the (estimated) factors against the two-dimensional PCA reduction of the dataset.
+
+```{r}
+# FA
+model = fapa(R, numFactors=2, communality="SMC")
+
+loadings = model$loadings
+rownames(loadings) = colnames(mtcars)
+
+specificVars = diag(cov(mtcars)) - model$h2
+psi = diag(specificVars)
+
+A = solve(t(loadings) %*% solve(psi) %*% loadings) %*% t(loadings) %*% solve(psi)
+f = A %*% t(mtcars)
+rownames(f) = c("f1","f2")
+f = t(f)
+f
+
+library(ggfortify)
+ggplot(f,aes(x = f[,1], y = f[,2], label=rownames(f))) +
+    geom_point(shape=NA) + geom_text(hjust=0, vjust=0, size=2) 
+```
+
+```{r}
+# PCA 
+pca = prcomp(mtcars, center=TRUE)
+autoplot(pca, data=mtcars, label=T, label.size=2, shape=F) + 
+    ggtitle("PCA Reduction of mtcars with k=2")
+```
+
+We do see some similarities between the two representations, for example notice how in both plots we have `Cadillac Fleetwood`, `Lincoln Continental` and `Chrysler Imperial` close together (bottom left in the FA plot and top right for PCA).
+Similarly, in the top right of the FA plot and top left for PCA we find a close group of `Honda Civic`, `Toyota Corolla` and `Fiat X1-9` (with `Fiat 128` nearby).
+However, the two reductions seem fairly comparable in quality overall, with the slight exception that the FA model has slightly fewer extreme overlaps of data reductions.
+It would probably be about equally as good to use either technique for this dataset, however, the lack of easily explainable (and distinct) factors in the factor model suggest that PCA might be the safer option.
+
+
+## Task 2
+For this independent component analysis we will work with the `icamusical`\footnote{\url{https://www.kaggle.com/chittalpatel/icamusical/activity}} dataset and attempt to recover the 3 original audio files which have been combined to produce the $p=3$ available audio files.
+
+First we'll read the audio files into `R`.
+```{r}
+library(tuneR)
+f1 = readWave("data/ICA mix 1.wav")
+X1 = f1@left
+
+f2 = readWave("data/ICA mix 2.wav")
+X2 = f2@left
+
+f3 = readWave("data/ICA mix 3.wav")
+X3 = f3@left
+
+X0 = cbind(X1, X2, X3)
+```
+We can visualise these input signals as seen below.
+```{r}
+plot(1:length(X1), X1, type="l", xlab="Sample", ylab="Amplitude", main="Input Signal 1")
+plot(1:length(X2), X2, type="l", xlab="Sample", ylab="Amplitude", main="Input Signal 2")
+plot(1:length(X3), X3, type="l", xlab="Sample", ylab="Amplitude", main="Input Signal 3")
+```
+
+We can then use the `fastICA` package to perform independent component analysis to recover the original three signals.
+In doing this we specify that ICA should be performed using the function $\varphi(u) = \frac{1}{\alpha} \log \cosh (\alpha u)$ with $\alpha=1$.
+```{r}
+library(fastICA)
+S = fastICA(X0, 3, fun="logcosh", alpha=1)$S
+```
+
+Visualising these recovered signals we can see that they look a lot more distinct from each other than the inputs, suggesting that the ICA has successfully separated the signals. 
+
+```{r}
+plot(1:length(S[,1]), S[,1], type="l", xlab="Sample", ylab="Amplitude",
+     main="Recovered Signal 1")
+plot(1:length(S[,2]), S[,2], type="l", xlab="Sample", ylab="Amplitude",
+     main="Recovered Signal 2")
+plot(1:length(S[,3]), S[,3], type="l", xlab="Sample", ylab="Amplitude",
+     main="Recovered Signal 3")
+```
+
+The recovered signals are not perfect, however, as you can see by the non-uniformity in the third output signal which should actually be a simple sine wave of a constant frequency---this would appear to us as a rectangular block due to the large number of samples.
+The (near-) constant frequency of this third signal can be seen more clearly if we zoom in.
+```{r}
+plot(1:1000, S[1:1000,3], type="l", xlab="Sample", ylab="Amplitude",
+     main="Recovered Signal 3 (Zoomed In)")
+```
+
+The imperfections observable when we zoom back out, which cause the jagged top and bottom edges of the 'rectangle', come from the clipping of amplitude when the three original signals were mixed together.
+This clipping can be heard if we write the recovered signals back as `.wav` files.
+```{r}
+library(seewave)
+for (i in 1:3){
+  savewav(S[,i], f=f1@samp.rate, channel=1, filename = paste('signal', i, '.wav'))
+}
+```
+
+Although these audio files do contain some undesired noise due to the loss of information caused by clipping, it is clear that the ICA has done an extremely good job overall of separating the signals---each of them are clearly identifiable and distinct.
+
+\bibliography{references.bib}

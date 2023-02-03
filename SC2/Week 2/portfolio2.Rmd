@@ -1,0 +1,127 @@
+---
+title: "Integrating R and C++"
+author: "Sam Bowyer"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Documents/Compass/SC2/Week 2")
+set.seed(0)
+```
+
+Ricker simulation in R
+```{r}
+rickerSimul <- function(n, nburn, r, y0 = 1){
+  y <- numeric(n)
+  yx <- y0
+  
+  # Burn in phase
+  if(nburn > 0){
+    for(ii in 1:nburn){ 
+      yx <- r * yx * exp(-yx)
+    }
+  }
+  
+  # Simulating and storing
+  for(ii in 1:n){
+    yx <- r * yx * exp(-yx)
+    y[ii] <- yx
+  }
+  
+  return( y )
+}
+```
+
+## Question 1
+
+Also written in C++
+```{bash}
+cat ./rickerSimul.c
+```
+
+So compile it
+```{r}
+system("R CMD SHLIB rickerSimul.c")
+```
+ (it's made a .o and .so file)
+```{bash}
+ls rickerSimul.*
+```
+
+load the function into r
+```{r}
+dyn.load("rickerSimul.so")
+is.loaded("rickerSimul")
+```
+
+Now call it with `.Call`
+```{r}
+n = 25L
+nburn=0L
+r = 5
+y0 = 4
+.Call("rickerSimul", n, nburn, r, y0)
+```
+
+Same output as w/ R implementation
+```{r}
+rickerSimul(n, nburn, r, y0)
+```
+
+Benchmark
+```{r}
+rickerSimulR <- function() rickersimul(100000L, 10000L, r, y0)
+rickerSimulC <- function() .Call("rickersimul", 100000L, 10000L, r, y0)
+
+library(microbenchmark)
+microbenchmark(rickerSimulR, rickerSimulC, times=1000)
+```
+
+## Question 2
+
+w/ noisy observations $z_t = y_t e^{\epsilon_t}$ where $\epsilon_t \sim N(0, \sigma^2)$.
+
+```{r}
+nburn <- 100L
+n <- 50L
+
+y0_true <- 1
+sig_true <- 0.1
+r_true <- 10
+
+Ntrue <- rickerSimul(n = n, nburn = nburn, r = r_true, y0 = y0_true)
+yobs <- Ntrue * exp(rnorm(n, 0, sig_true))
+
+plot(yobs, type = 'b')
+```
+
+Written a function to calculate the (log) likelihood of the data `rickerLLK.c`
+```{bash}
+cat rickerLLK.c
+```
+
+```{r}
+system("R CMD SHLIB rickerLLK.c")
+dyn.load("rickerLLK.so")
+is.loaded("rickerLLK")
+```
+
+Wrap the likelihood calculation in an R function:
+```{r}
+myLikR <- function(logr, logsig, logy0, yobs, nburn){
+  n <- length(yobs)
+  r <- exp(logr)
+  sig <- exp(logsig)
+  y0 <- exp(logy0)
+  
+  ysim <- .Call("rickerSimul", n, nburn, r, y0)
+  
+  llk <- .Call("rickerLLK", yobs, ysim, sig)
+  
+  return( llk )
+}
+
+myLikR(log(r_true), log(sig_true), log(y0_true), yobs, nburn)
+```
