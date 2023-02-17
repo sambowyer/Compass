@@ -1,0 +1,39 @@
+---
+title: "Portfolio 3 - Multivariate KDE with RcppArmadillo"
+author: "Sam Bowyer"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Multivariate Kernel Density Estimation (KDE)
+```{r}
+load("solarAU.RData")
+head(solarAU)
+solarAU$logprod <- log(solarAU$prod+0.01)
+library(ggplot2)
+library(viridis)
+ggplot(solarAU,
+       aes(x = toy, y = tod, z = logprod)) +
+       stat_summary_2d() +
+       scale_fill_gradientn(colours = viridis(50))
+
+X <- with(solarAU, cbind(1, tod, tod^2, toy, toy^2))
+head(X)
+```
+
+```{r}
+library(Rcpp)
+sourceCpp(code = '
+ // [[Rcpp::depends(RcppArmadillo)]]
+ #include <RcppArmadillo.h>
+ using namespace Rcpp;
+
+ // [[Rcpp::export(name = "fitPoly_Arma")]]
+ arma::vec MMv_arma_I(arma::mat& X, arma::vec& y) {
+   return (A * B * y);
+}')
+```
