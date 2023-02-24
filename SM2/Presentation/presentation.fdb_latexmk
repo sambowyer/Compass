@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex presentation"] 1677200066 "presentation.aux" "presentation.bbl" "presentation" 1677200068 0
+["bibtex presentation"] 1677226727 "presentation.aux" "presentation.bbl" "presentation" 1677226729 0
   "./refs.bib" 1677199300 3034 61455faed6bdd7abd6aaa204cef6161a ""
   "/usr/local/texlive/2022/texmf-dist/bibtex/bst/base/apalike.bst" 1292289607 24635 604dafcc79f521a11ea73e506e1fbd98 ""
-  "presentation.aux" 1677200068 6234 73858c485bb2f224cb672b89d5fd32b4 "pdflatex"
+  "presentation.aux" 1677226729 6234 73858c485bb2f224cb672b89d5fd32b4 "pdflatex"
   (generated)
   "presentation.bbl"
   "presentation.blg"
   (rewritten before read)
-["pdflatex"] 1677200066 "/home/dg22309/Documents/Compass/SM2/Presentation/presentation.tex" "presentation.pdf" "presentation" 1677200068 0
+["pdflatex"] 1677226727 "/home/dg22309/Documents/Compass/SM2/Presentation/presentation.tex" "presentation.pdf" "presentation" 1677226729 0
   "/home/dg22309/.texlive2022/texmf-var/fonts/pk/ljfour/public/concrete/ccr10.1037pk" 1676990340 19456 3d9f9761321613c7df36b3b36c3db278 ""
   "/home/dg22309/.texlive2022/texmf-var/fonts/pk/ljfour/public/concrete/ccr10.1244pk" 1676990343 25416 1b0fe6b90382c70fd9b385737fec862a ""
   "/home/dg22309/.texlive2022/texmf-var/fonts/pk/ljfour/public/concrete/ccr10.657pk" 1676990335 11044 121dbf3c70f3392ef7f8fe8bb97eeebf ""
@@ -17,7 +17,7 @@
   "/home/dg22309/.texlive2022/texmf-var/fonts/pk/ljfour/public/concrete/ccti10.360pk" 1676990334 8160 eb6338a7309a19d56016ee15ba626ed0 ""
   "/home/dg22309/.texlive2022/texmf-var/fonts/pk/ljfour/public/concrete/ccti10.480pk" 1676990336 11100 d2908edb48d5827786f0d9a465fcabe6 ""
   "/home/dg22309/.texlive2022/texmf-var/fonts/pk/ljfour/public/concrete/ccti10.657pk" 1676990339 16512 99ed56a8c90f3d7cdbf67d0db6d2bd5d ""
-  "/home/dg22309/Documents/Compass/SM2/Presentation/presentation.tex" 1677200064 16711 5ad61ee0842ef152e59696de64d1c408 ""
+  "/home/dg22309/Documents/Compass/SM2/Presentation/presentation.tex" 1677226725 16715 11a7a116562fca9bb6a6f0f6b5517db3 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2022/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/tfm/adobe/helvetic/phvr7t.tfm" 1136768653 2520 53e01eef820ca829e42c1333c3fd02b9 ""
@@ -297,12 +297,12 @@
   "code/STSC.png" 1677197254 43547 5746e30f263edb5678520dadda75de3c ""
   "code/regularSC.png" 1677197236 44018 ac6fbf40632f5ed6add468b0127b7d7a ""
   "local_scaling.png" 1677154384 80259 a1cba0221602a8edb3da6efd85ca90d7 ""
-  "presentation.aux" 1677200068 6234 73858c485bb2f224cb672b89d5fd32b4 "pdflatex"
-  "presentation.bbl" 1677200066 370 7e0c8b167ae5b81ad48405e754bf0f2b "bibtex presentation"
-  "presentation.nav" 1677200068 2891 17ec90ccc98209fc1f0ef12305eb6c0e "pdflatex"
-  "presentation.out" 1677200068 860 24f7d75334512d4d621daf35d7bfffa4 "pdflatex"
-  "presentation.tex" 1677200064 16711 5ad61ee0842ef152e59696de64d1c408 ""
-  "presentation.toc" 1677200068 355 e2c4f0736b1b2a882aeb58fd833e1cf2 "pdflatex"
+  "presentation.aux" 1677226729 6234 73858c485bb2f224cb672b89d5fd32b4 "pdflatex"
+  "presentation.bbl" 1677226727 370 7e0c8b167ae5b81ad48405e754bf0f2b "bibtex presentation"
+  "presentation.nav" 1677226729 2891 17ec90ccc98209fc1f0ef12305eb6c0e "pdflatex"
+  "presentation.out" 1677226729 860 24f7d75334512d4d621daf35d7bfffa4 "pdflatex"
+  "presentation.tex" 1677226725 16715 11a7a116562fca9bb6a6f0f6b5517db3 ""
+  "presentation.toc" 1677226729 355 e2c4f0736b1b2a882aeb58fd833e1cf2 "pdflatex"
   "sensitive_sigma.png" 1677152920 118853 70f9b782d71cf6d39ed1ce130ff42f4d ""
   (generated)
   "presentation.aux"

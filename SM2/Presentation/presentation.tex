@@ -178,7 +178,7 @@
     In the ideal case that there are some $K$ completely disconnected clusters (i.e. $\hat{W}_{ij} > 0$ if and only if $x_i$ and $x_j$ are in the same cluster), then the eigenvalues of $\tilde{L}$, given by $\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_n$, will be such that:
     \[1 = \lambda_1 = \cdots = \lambda_K > \lambda_{K+1} \geq \cdots \geq \lambda_n \geq 0.\]
     
-    This leads to the ``eigengap heuristic" for choosing $K$: choose $K$ to be the smallest integer such that $\lambda_{K+1} - \lambda_K$ is large.
+    This leads to the ``eigengap heuristic" for choosing $K$: choose $K$ to be the smallest integer such that $\lambda_{K} - \lambda_{K+1}$ is large.
     \newline\newline
     \pause
     However, with real, noisy data, the above may not hold (``lacks a theoretical justification" \cite{zelnik-manor_self-tuning_2004})---so instead of looking at the eigenvalues, we'll look further into the structure of $\tilde{L}$'s eigenvectors.
@@ -261,7 +261,7 @@
   \pause 
   \begin{enumerate}[<+->]
     \item Assign $x_i$ to the cluster $k = \argmax_j \hat{Z}_{ij}^2$.
-    \item As in the old algorithm, perform $K$-means on the rows of $\hat{Z}$ to find the clusters (this should converge fairly quickly since $\hat{Z}$ is likely to be a good initialisation).
+    \item As in the old algorithm, perform $K$-means on the rows of $\hat{Z}$ to find the clusters (this should converge fairly quickly since \alert{(1)} is likely to be a good initialisation).
     This is particularly useful for very noisy data.
   \end{enumerate}
 \end{frame}
