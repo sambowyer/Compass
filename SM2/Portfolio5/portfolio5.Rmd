@@ -1,0 +1,170 @@
+---
+title: "Ridge Regression, LASSO and Smoothing"
+author: "Sam Bowyer"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+set.seed(0)
+```
+
+## Task 1
+For this first task we will be using the Communities and Crime dataset from the `R` package `mogavs`.
+This contains 1595 datapoints each with data on $p=122$ variables and one target variable.
+We use a random 80%/20% split to obtain distinct training and test sets with 1595 and 399 datapoints respectively.
+```{r}
+library(mogavs)  # for crime & communities dataset
+data("crimeData")
+
+p = ncol(crimeData) - 1
+
+propTrain = 0.8
+trainIdx  = sample(1:nrow(crimeData), nrow(crimeData)*0.8)
+
+XTrain = crimeData[trainIdx, -(p+1)]
+yTrain = crimeData[trainIdx, p+1]
+
+XTest = crimeData[-trainIdx, -(p+1)]
+yTest = crimeData[-trainIdx, p+1]
+
+dim(XTrain); length(yTrain)
+dim(XTest); length(yTest)
+```
+
+Next we center and scale our data.
+```{r}
+# center the X data around the training mean
+XTrain_mean = colMeans(XTrain)
+XTrain = XTrain - rep(XTrain_mean, rep.int(nrow(XTrain), p))
+XTest = XTest - rep(XTrain_mean, rep.int(nrow(XTest), p))
+
+# scale the data so that variables have unit variance
+D = diag(cov(XTrain))
+XTrain = XTrain * (D^(-1/2))
+Xest   = XTest * (D^(-1/2))
+```
+
+### Ridge Regression
+For both ridge and LASSO regression we use the package `glmnet`, which imposes a penalty given by:
+\[(1-\alpha)/2||\beta||_2^2 + \alpha ||\beta||_1.\]
+Clearly this gives us the ridge penalty for $\alpha=0$ and the LASSO penalty for $\alpha=1$, hence we proceed with $\alpha=0$ and use the default 10-fold cross validation to find the best value for $\lambda$ by which to multiply the penalty.
+```{r}
+library(glmnet)
+ridgeCV = cv.glmnet(as.matrix(XTrain), yTrain, alpha=0) #k=10-fold cv by default
+plot(ridgeCV)
+```
+
+This leads to an optimum lambda of 0.06677693.
+```{r}
+optLambda = ridgeCV$lambda.min
+optLambda
+```
+
+Using this value of lambda we can then obtain predicted target values $\hat{y}$ and see that the MSE of these compared the the true target values $y$ is roughly 0.0456.
+```{r}
+ridge = glmnet(as.matrix(XTrain), yTrain, alpha=0, lambda=optLambda)
+
+yRidge = predict(ridge, as.matrix(XTest))
+sum((yTest - yRidge)^2)/length(yTest)
+```
+
+### LASSO Regression
+We now repeat the above but with $\alpha=1$ to use LASSO regression instead of ridge regression.
+```{r}
+lassoCV = cv.glmnet(as.matrix(XTrain), yTrain, alpha=1) # k=10-fold cv by default
+plot(lassoCV)
+```
+
+(The ticks along the top of the plot denotes the number of non-zero coefficients for the corresponding value of $\lambda$.)
+
+This then leads to the optimum lambda value of 0.003647541. 
+```{r}
+optLambda = lassoCV$lambda.min
+optLambda
+```
+
+We can also plot the LASSO path. Note that we are actually plotting the *scaled* values of our $\beta$ estimate (given as $\gamma$ in the notes), which we will rescale to obtain our actual $\beta$ estimates later.
+```{r}
+lasso = glmnet(XTrain, yTrain, alpha=1, lambda=optLambda)
+plot(glmnet(XTrain, yTrain, alpha=1), xvar='lambda')
+```
+
+We see that many of the 122 coefficients are sent to zero when $\log \lambda < -4$, at which point the remaining 16 nonzero coefficients require more significant increases in $\log \lambda$ to be sent to zero, culminating in just 2 nonzero coefficients when $\log \lambda = -2$.
+
+As with ridge regression, we now calculate the MSE of the LASSO model's predictions. This leads to a slightly better MSE of 0.0435 compared to ridge's 0.0456.
+```{r}
+yLasso = predict(lasso, as.matrix(XTest))
+sum((yTest - yLasso)^2)/length(yTest)
+```
+
+Finally, we can rescale the coefficients to obtain our optimal $\beta$ estimates for both ridge and LASSO regression as below.
+Here we see that ridge regression leads to no zero-valued coefficients, whilst LASSO leads to 83 zero-valued coefficients (this makes sense as an increased number of zero-valued coefficients is one of the main motivations behind LASSO regression).
+```{r}
+ridgeBeta = D^(-1/2) * ridge$beta
+lassoBeta = D^(-1/2) * lasso$beta
+
+sum(ridgeBeta == 0); sum(lassoBeta == 0)
+```
+
+(But as mentioned before, the number of zero-coefficients would be the same if we checked the unscaled estimates too.)
+```{r}
+sum(ridge$beta == 0); sum(lasso$beta == 0)
+```
+
+<!-- ### Using Principal Components -->
+<!-- We can do the same as above but this time using a PCA reduction of the dataset -->
+<!-- ```{r} -->
+
+<!-- ``` -->
+
+## Task 2
+In this task we will use the Bone Mineral Density dataset\footnote{https://hastie.su.domains/ElemStatLearn/} and the `R` package `mgcv` to fit our model.
+This dataset contains 485 recordings of spinal bone mineral density for male and female subjects of varying ages.
+```{r}
+X0 = read.table("boneMineralDensity.dat", header=T)
+head(X0)
+dim(X0)
+```
+
+First we split our dataset into male and female observations since we will fit separate models for each.
+```{r}
+maleX = X0[X0$gender=="male",]
+femaleX = X0[X0$gender=="female",]
+```
+
+To fit out models we use the function `gam` with the formula `spnbmd ~ s(age, bs="cr")`: `spnbmd` gives us the variable of interest, the relative change in spinal BMD, whilst `s(age, bs="cr")` tells us that we want to fit a spline using the `age` variables over a basis (`bs`) of cubic regression splines (`cr`). 
+This function uses generalised cross validation by default.
+```{r}
+library(mgcv)
+maleSpline = gam(spnbmd ~ s(age, bs="cr"), data=maleX) # uses gcv by default
+femaleSpline = gam(spnbmd ~ s(age, bs="cr"), data=femaleX)
+
+summary(maleSpline)
+summary(femaleSpline)
+```
+
+Below we then plot the two models along with the datapoints with female data in red and male in blue in order to recreate Figure 5.6 from *The Elements of Statistical Learning*.
+However, note that unlike Figure 5.6, we have different values of $\lambda$ for the male and female splines, as found through generalised cross validation, rather than setting $\lambda \approx 0.00022$ for both models. 
+This has led to a slightly different plot here, though one showing largely the same behaviour as Figure 5.6.
+```{r}
+# Get the increasing-age order of rows so that we can plot the splines properly
+maleAgesOrder = order(maleX$age)
+femaleAgesOrder = order(femaleX$age)
+
+# Plot the splines
+plot(femaleX$age[femaleAgesOrder], femaleSpline$fitted.values[femaleAgesOrder],
+     col="red", type="l", xlab="Age",
+     ylab="Relative Change in Spinal BMD", ylim=c(-0.07,0.23))
+lines(maleX$age[maleAgesOrder] ,maleSpline$fitted.values[maleAgesOrder], col="blue")
+
+# Plot the data points
+points(maleX$age, maleX$spnbmd, col="blue", cex=0.2)
+points(femaleX$age, femaleX$spnbmd, col="red", cex=0.2)
+
+# Add a dotted x=0 line and a legend
+abline(0,0, lty=2)
+legend(22, 0.15, legend=c("Female", "Male"),
+       col=c("red", "blue"), lty=1, cex=0.8)
+```
