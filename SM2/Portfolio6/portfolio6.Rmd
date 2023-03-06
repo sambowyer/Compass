@@ -1,0 +1,95 @@
+---
+title: "Generalized Additive Models"
+author: "Sam Bowyer"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+set.seed(1)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For this task we will fit a logistic GAM on the `wesdr` dataset (from the `R` package `gss`) from the Wisconsin Epidemiological Study of Diabetic Retinopathy.
+This dataset contains 669 observations 3 continuous input variables and a single binary output variable `ret` indicating retinopathy progression, hence the use of a logistic model.
+```{r}
+library(gss)
+data(wesdr)
+head(wesdr)
+dim(wesdr)
+```
+
+We first perform an 80/20 train/test split of the data.
+```{r}
+p = ncol(wesdr) - 1
+
+propTrain = 0.8
+trainIdx  = sample(1:nrow(wesdr), nrow(wesdr)*0.8)
+
+train = wesdr[trainIdx,]
+
+XTest = wesdr[-trainIdx, -(p+1)]
+yTest = wesdr[-trainIdx, p+1]
+
+dim(train)
+dim(XTest); length(yTest)
+```
+
+We fit the GAM on the training data using the package `mgcv`, which uses generalized cross-validation by default to choose the penalty parameters $\{\lambda_j\}_{j=1}^p$.
+```{r, results='hide'}
+library(mgcv)
+```
+```{r}
+model = gam(ret ~ s(dur) + s(gly) + s(bmi), family=binomial(link="logit"), data=train)
+plot(model)
+summary(model)
+```
+
+Note that we have indeed arrived at non-linear estimated functions for two of the three input variables (`dur` and `bmi`), suggesting that a GAM was a reasonable choice for the data.
+This is further backed up by the fact that this model achieves a prediction accuracy of 92% on the test set.
+```{r}
+yTestPrediction = predict(model, XTest) > 0
+sum(yTest == yTestPrediction)/100
+```
+
+Compare this to a generalised linear model, which only achieves a prediction accuracy of 88% on the test set. 
+This is still fairly impressive but is slightly lower than the previous model, suggesting that the nonlinearity captures useful behaviour within the dataset.
+<!-- # ```{r} -->
+<!-- # model = glm(ret ~ dur + gly + bmi, family=binomial(link="logit"), data=train) -->
+<!-- # # plot(model) -->
+<!-- # summary(model) -->
+<!-- #  -->
+<!-- #  -->
+<!-- # # dur plot -->
+<!-- # plotXs =  -->
+<!-- #  -->
+<!-- # # gly plot -->
+<!-- #  -->
+<!-- #  -->
+<!-- # # bmi plot -->
+<!-- #  -->
+<!-- # yTestPrediction = predict(model, XTest) > 0 -->
+<!-- # sum(yTest == yTestPrediction)/100 -->
+<!-- # ``` -->
+
+```{r}
+model = gam(ret ~ dur + gly + bmi, family=binomial(link="logit"), data=train)
+summary(model)
+yTestPrediction = predict(model, XTest) > 0
+sum(yTest == yTestPrediction)/100
+```
+
+We can plot the fitted (linear) functions per input variable as follows.
+```{r}
+# Obtain the fitted values of the model per input variable
+functionVals = predict(model, type="terms")
+head(functionVals)
+
+# Plot them against the true Value to show that the functions are indeed linear
+plot(train$dur, functionVals[,1],
+     xlab="Duration of Diabetes at Baseline (Years)", ylab="Fitted Value")
+plot(train$gly, functionVals[,2],
+     xlab="Percentage of Glycosylated Hemoglobin at Baseline", ylab="Fitted Value")
+plot(train$bmi, functionVals[,3],
+     xlab="Body Mass Index at Baseline", ylab="Fitted Value")
+```
