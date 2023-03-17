@@ -46,14 +46,14 @@ summary(model)
 ```
 
 Note that we have indeed arrived at non-linear estimated functions for two of the three input variables (`dur` and `bmi`), suggesting that a GAM was a reasonable choice for the data.
-This is further backed up by the fact that this model achieves a prediction accuracy of 92% on the test set.
+This is further backed up by the fact that this model achieves a prediction accuracy of 68.7% on the test set.
 ```{r}
 yTestPrediction = predict(model, XTest) > 0
-sum(yTest == yTestPrediction)/100
+mean(yTest == yTestPrediction)
 ```
 
-Compare this to a generalised linear model, which only achieves a prediction accuracy of 88% on the test set. 
-This is still fairly impressive but is slightly lower than the previous model, suggesting that the nonlinearity captures useful behaviour within the dataset.
+Compare this to a generalised linear model, which only achieves a prediction accuracy of 65.7% on the test set. 
+This is slightly lower than the previous model, suggesting that the nonlinearity captures useful behaviour within the dataset.
 <!-- # ```{r} -->
 <!-- # model = glm(ret ~ dur + gly + bmi, family=binomial(link="logit"), data=train) -->
 <!-- # # plot(model) -->
@@ -76,7 +76,7 @@ This is still fairly impressive but is slightly lower than the previous model, s
 model = gam(ret ~ dur + gly + bmi, family=binomial(link="logit"), data=train)
 summary(model)
 yTestPrediction = predict(model, XTest) > 0
-sum(yTest == yTestPrediction)/100
+mean(yTest == yTestPrediction)
 ```
 
 We can plot the fitted (linear) functions per input variable as follows.
