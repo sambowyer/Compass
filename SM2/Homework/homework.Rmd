@@ -28,7 +28,7 @@ $$ f(x) = \langle f, k(x, \cdot) \rangle_k \;\; \forall x \in \mathcal{X}, \; \f
 
 Hence $(\mathcal{H}_k, \langle \cdot, \cdot \rangle_k)$ is the unique reproducing kernel Hilbert space induced by the kernel $k$.
 
-Then by the definition of our space $\mathcal{H}_k$ we know that there exist two functions $f_1, f_2 \in \mathcal{H}_k$ such that $a = f_1 \neq f_2 = b$ for some $a,b \in \mathcal{R}$.
+Then by the definition of our space $\mathcal{H}_k$ we know that there exist two functions $f_1, f_2 \in \mathcal{H}_k$ such that $a = f_1 \neq f_2 = b$ for some $a,b \in \mathbb{R}$.
 Finally note that the model parameterised by $(f_1, \alpha, \phi)$ is the same as the model parameterised by $(f_2, \alpha + a - b, \phi)$ since 
 $$ \alpha + f_1(x) = \alpha + a - b + b = (\alpha + a - b) + f_2(x) = a \;\; \forall x \in \mathcal{X}.$$
 Hence the kernel $k$ is leads to the model being unidentifiable.
@@ -59,10 +59,10 @@ Next observe that via the reproducing property of the RKHS $(\mathcal{H}_k, \lan
 \hat{f}_\lambda(x_j^0) = \langle \hat{f}_\lambda, k(x_j^0, \cdot)\rangle_k &= \langle f_1 + f_2, k(x_j^0, \cdot)\rangle_k \\
 &= \langle f_1, k(x_j^0, \cdot)\rangle_k + \langle f_2, k(x_j^0, \cdot)\rangle_k \\
 &= f_1(k(x_j^0) + 0 \\
-&= \sum_{i=1}^n \hat{\beta}_{\lambda, i} k(x_i^0, x_j^0)
+&= \sum_{i=1}^n \hat{\beta}_{\lambda, i} k(x_i^0, x_j^0),
 \end{aligned}\]
 
-Where we have also used the linearity of the inner product and the fact that $$x_j^0 \in \tilde{\mathcal{H}}_n \implies x_j^0 \notin \tilde{\mathcal{H}}_n^\perp \implies  \langle f_2, k(x_j^0, \cdot)\rangle_k= 0.$$
+where we have also used the linearity of the inner product and the fact that $$x_j^0 \in \tilde{\mathcal{H}}_n \implies x_j^0 \notin \tilde{\mathcal{H}}_n^\perp \implies  \langle f_2, k(x_j^0, \cdot)\rangle_k= 0.$$
 
 Now we have shown that $\hat{f}_\lambda(x_j^0) = \sum_{i=1}^n \hat{\beta}_{\lambda, i} k(x_i^0, x_j^0)$ for all $j \in \{1,...,n\}$, however, we must still prove that $\hat{f}_\lambda(x) = \sum_{i=1}^n \hat{\beta}_{\lambda, i} k(x_i^0, x)$ for all $x \in \mathbb{R}^p$.
 
@@ -114,9 +114,9 @@ Observe that
 &= \hat{\beta}_\lambda K_{n,d}(K_{d,d})^{-1} k_d(\cdot)\\
 &= \hat{\nu}_\lambda^T k_d(\cdot)
 \end{aligned}\]
-where $\hat{\nu}_\lambda^T := \hat{\beta}_\lambda^T K_{n,d}(K_{d,d})^{-1} \in \mathbb{R}^d$ (and thus $\hat{\nu}_\lambda = (K_{d,d})^{-1} K_{n,d}^T \hat{\beta}_\lambda$ since $K_{d,d}$ is diagonal means that so is its inverse).
+where $\hat{\nu}_\lambda^T := \hat{\beta}_\lambda^T K_{n,d}(K_{d,d})^{-1} \in \mathbb{R}^d$ (and thus $\hat{\nu}_\lambda = (K_{d,d})^{-1} K_{n,d}^T \hat{\beta}_\lambda$ since $K_{d,d}$ being diagonal means that so is its inverse).
 
-Now we have parameters $\hat{\nu}_\lambda \in \mathbb{R}^d$, $\alpha \in \mathbb{R}$ and $\hat{\phi} \in (0, \infty)$, i.e. we have reduced the dimension of the optimisation problem from $n+2$ to $d+2=m$.
+Now we have parameters $\hat{\nu}_\lambda \in \mathbb{R}^d$, $\hat{\alpha} \in \mathbb{R}$ and $\hat{\phi} \in (0, \infty)$, i.e. we have reduced the dimension of the optimisation problem from $n+2$ to $d+2=m$.
 However, we need to reformulate the penalty term in the objective function to work with our new parameter $\hat{\nu}_\lambda$ instead of $\hat{\beta}_\lambda$.
 We can do this by noting that
 \[\begin{aligned}
@@ -128,12 +128,12 @@ We can do this by noting that
 
 Thus, the objective function of the $m$-dimensional optimisation problem is:
 \[\begin{aligned}
-(\hat{\alpha}_\lambda, \hat{\phi}_\lambda, \hat{\nu}_\lambda) \in \argmax_{\alpha \in \mathbb{R}, \phi \in (0, \infty), \nu\_lambda \in \mathbb{R}^p} \frac{1}{2n}&\sum_{i=1}^n \log \tilde{f}(y_i; g^{-1}(\alpha + \nu_\lambda^T k_d(x_i^0)), \phi) \\
+(\hat{\alpha}_\lambda, \hat{\phi}_\lambda, \hat{\nu}_\lambda) \in \argmax_{\alpha \in \mathbb{R}, \phi \in (0, \infty), \nu_\lambda \in \mathbb{R}^p} \frac{1}{2n}&\sum_{i=1}^n \log \tilde{f}(y_i; g^{-1}(\alpha + \nu_\lambda^T k_d(x_i^0)), \phi) \\
 &- \lambda\nu_\lambda^T K_{d,d} \nu_\lambda.
 \end{aligned}\]
 
 ### Question 5
-In order to use the `R` package `glmnet` in solving this problem, we need to convert the penalty term into an $\lambda$ multiplied by an L2 norm (an L1 norm would also work with `glmnet`, however, we'll see that an L2 norm arises fairly easily after some manipulation).
+In order to use the `R` package `glmnet` in solving this problem, we need to convert the penalty term into $\lambda$ multiplied by an L2 norm (an L1 norm would also work with `glmnet`, however, we'll see that an L2 norm arises fairly easily after some manipulation).
 
 We do this by first obtaining the spectral decomposition of $K_{d,d}$, i.e. $K_{d,d} = U D U^T$ where $U$ is an orthogonal matrix and $D$ is a diagonal matrix.
 With this, the penalty term easily takes on the desired L2 norm form:
@@ -153,12 +153,12 @@ We do this by observing that
 &= (D^{1/2} U^T \hat{\nu}_\lambda)^T(D^{-1/2} U^T k_d(x_i^0)) \\
 \end{aligned}\]
 
-Hence denoting our transformed data as $x_i^\text{new} = D^{-1/2} U^T k_d(x_i^0)$ we would call `glmnet` with the command `glmnet(X_new, y, alpha = 0)` (see question 6) where $X_\text{new} = (D^{-1/2} U^T K_{d,n})^T = K_{n,d} U D^{-1/2}$. (Note that we have also set `alpha = 0` since we are using an L2 norm penalty, rather than an L1 norm penalty that would require `alpha=1`).
+Hence denoting our transformed data as $x_i^\text{new} = D^{-1/2} U^T k_d(x_i^0)$ we would call `glmnet` with the command `glmnet(X_new, y, alpha = 0)` (see question 6) where $X_\text{new} = (D^{-1/2} U^T K_{d,n})^T = K_{n,d} U D^{-1/2}$. (Note that we have also set `alpha = 0` since we are using an L2 norm penalty, rather than an L1 norm penalty that would require `alpha=1`.)
 
 This is solving the same optimisation problem as in the previous question, however, it might be clearer to now write the objective function as
 
 \[\begin{aligned}
-(\hat{\alpha}_\lambda, \hat{\phi}_\lambda, \hat{\nu}_\lambda) \in \argmax_{\alpha \in \mathbb{R}, \phi \in (0, \infty), \nu\lambda \in \mathbb{R}^p} \frac{1}{2n}&\sum_{i=1}^n \log \tilde{f}(y_i; g^{-1}(\alpha + (D^{1/2} U^T \nu_\lambda)^Tx_i^\text{new}), \phi) \\
+(\hat{\alpha}_\lambda, \hat{\phi}_\lambda, \hat{\nu}_\lambda) \in \argmax_{\alpha \in \mathbb{R}, \phi \in (0, \infty), \nu_\lambda \in \mathbb{R}^p} \frac{1}{2n}&\sum_{i=1}^n \log \tilde{f}(y_i; g^{-1}(\alpha + (D^{1/2} U^T \nu_\lambda)^Tx_i^\text{new}), \phi) \\
 &- \lambda ||D^{1/2} U^T \nu_\lambda||_2^2.
 \end{aligned}\]
 
@@ -217,7 +217,6 @@ question6 <- function(lambda, c, m){
   D = diag(decomp$values)
   U = decomp$vectors
 
-  # X_new = (solve(D)**0.5) %*% t(U) %*% K_nd
   X_new = K_nd %*% U %*% (solve(D)**0.5)
 
   model = glmnet(X_new, yTrain, family=binomial(link="logit"), alpha = 0)
@@ -250,7 +249,6 @@ getTransformedX <- function(lambda, c, m, epsilon=1e-13){
   D = diag(decomp$values)
   U = decomp$vectors
 
-  # XTrain_new = (solve(D)**0.5) %*% t(U) %*% t(K_nd)
   XTrain_new = K_nd %*% U %*% (solve(D)**0.5)
 
   K_nd_Test = matrix(rep(0, nrow(XTest)*d), nrow=nrow(XTest), ncol=d)
@@ -288,7 +286,7 @@ question8 <- function(c, m, epsilon=1e-13, plot=FALSE){
 
   X_new = getTransformedX(lambda, c, m, epsilon)$train
 
-  cv = cv.glmnet(X_new, yTrain, family=binomial(link="logit"), alpha = 0)#, lambdas=c(0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000)) #k=10-fold cv by default
+  cv = cv.glmnet(X_new, yTrain, family=binomial(link="logit"), alpha = 0)
   optLambda = cv$lambda.min
 
   if (plot) plot(cv)
@@ -312,7 +310,7 @@ question9 <- function(m, epsilon=1e-13){
   for(c in bandwidths){
     X_new = getTransformedX(lambda, c, m, epsilon)$train
 
-    ridgeCV = cv.glmnet(X_new, yTrain, family=binomial(link="logit"), alpha = 0) #k=10-fold cv by default
+    ridgeCV = cv.glmnet(X_new, yTrain, family=binomial(link="logit"), alpha = 0)
     optCVErr = ridgeCV$cvm
     if (min(optCVErr) < best_CVErr){
       best_CVErr = min(optCVErr)
@@ -321,7 +319,8 @@ question9 <- function(m, epsilon=1e-13){
     }
   }
 
-  return(list(model = question7(best_lambda, best_c, m, epsilon=1e-13), c=best_c, lambda = best_lambda))
+  return(list(model = question7(best_lambda, best_c, m, epsilon=1e-13),
+              c=best_c, lambda = best_lambda))
 }
 
 model = question9(100)
@@ -360,11 +359,12 @@ This is definitely better than random chance, however, it is far from being very
 It may be the case that a better family of kernels (or even RBF kernels but with a different variety of bandwidths) would improve this result, and we might also want to consider increasing the range of values tested in cross validation for $\lambda$.
 
 ### Question 11
-In comparison, computing a GAM estimate of the model results in an accuracy of 67.9%, a better result than any of our previous models in this investigation.
+In comparison, computing a GAM estimate of the model (using natural cubic splines) results in an accuracy of 67.9%, a better result than any of our previous models in this investigation.
 ```{r}
 library(mgcv)
 train = wesdr[trainIdx,]
-model = gam(ret ~ s(dur) + s(gly) + s(bmi), family=binomial(link="logit"), data=train)
+model = gam(ret ~ s(dur, bs="cr") + s(gly, bs="cr") + s(bmi, bs="cr"), 
+            family=binomial(link="logit"), data=train)
 plot(model)
 summary(model)
 yTestPrediction = predict(model, XTest) > 0
