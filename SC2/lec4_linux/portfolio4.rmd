@@ -1,0 +1,161 @@
+---
+title: "Portfolio 4"
+author: "Sam Bowyer"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Documents/Compass/SC2/lec4")
+set.seed(0)
+```
+
+
+# Linux Command Line
+
+## Introduction
+It is very useful to be familiar with the Linux command line as it can be used to access remote systems and perform tasks that are not possible with a GUI, and can be used to automate tasks and speed up your workflow.
+
+There also exist many command line tools such as `git` and `ssh` that are more commonly used with the command line than with a GUI (although there are GUIs for these tools as well).
+
+## Basic Commands
+
+### Moving Around the File System
+The command line is a text interface to the operating system and as such any command you type is ran from within some point of the computer's file system.
+
+For instance, the command `pwd` (print working directory) will print the current directory you are in:
+```{bash}
+pwd
+```
+The command `ls` (list) will list the files in the current directory:
+```{bash}
+ls
+```
+You can add the `-l` flag to `ls` to get more information about the files:
+```{bash}
+ls -l
+```
+The flag `-a` will list all files including hidden files and can be combined with `-l` as follows:
+```{bash}
+ls -la
+```
+
+The general format for commands is:
+```
+command [options] [arguments]
+```
+where `command` is the name of the command, `options` are flags that change the behaviour of the command, and `arguments` are the arguments to the command.
+You can get details on the available options for a command by using the `man` command, e.g. `man ls` will give you the manual page for the `ls` command:
+```{bash}
+man ls
+```
+
+One of the most useful commands is `cd` (change directory) which allows you to change the current directory:
+```{bash}
+cd command-line-files
+```
+
+There are some reserved shortcuts for directories:
+
+- `cd ..` - change directory to parent directory
+- `cd ~` - change directory to home directory
+- `cd -` - change directory to previous directory
+
+```{bash}
+cd ~
+```
+Also useful to know is that the `.` character is a shortcut for the current directory, i.e. `./example_directory` is equivalent to `example_directory`.
+
+### File Manipulation
+Some other common commands are:
+
+- `mkdir` - make directory
+- `rmdir` - remove directory
+- `rm` - remove file
+- `rm -r` - remove directory
+- `rm -rf` - remove directory and all files in it
+- `cp` - copy file
+- `cp -r` - copy directory
+- `cp -rf` - copy directory and all files in it
+- `mv` - move file
+- `mv -r` - move directory
+- `mv -rf` - move directory and all files in it
+
+For instance the following set of commands will create a directory `example_directory` and then copy it to a new directory `example_directory_copy` before removing the original directory:
+```{bash}
+mkdir example_directory
+cp -r example_directory example_directory_copy
+rm -rf example_directory
+```
+### Reading and Writing Files
+We can create a file using the `touch` command:
+```{bash}
+touch example_file
+```
+And then write to it using the `echo` command:
+```{bash}
+echo "Hello World" > example_file
+```
+We can then read the contents of the file using the `cat` command:
+```{bash}
+cat example_file
+```
+We can also append to the file using the `>>` operator:
+```{bash}
+echo "Hello, again, World" >> example_file
+```
+
+For longer files we might want to use the `head` and `tail` commands to print the first and last 10 lines of the file respectively. 
+In this example we'll look into a file containing the text of `King Lear` by William Shakespeare:
+```{bash}
+head command-line-files/some_plays/king-lear.txt
+tail command-line-files/some_plays/king-lear.txt
+```
+
+An interactive file viewer (therefore one we can't effectively print out in this document) is also available using the `less` command, e.g. with:
+```
+less command-line-files/some_plays/king-lear.txt
+```
+
+### Searching Files
+One of the most useful commands is `grep` which allows you to search for a pattern in a file:
+```{bash}
+grep "land" command-line-files/some_plays/king-lear.txt
+```
+Note that lines containing the words `slander` and `Rowland` are also returned as they contain the pattern `land`. 
+To get only lines that contain the exact pattern we can use the `-w` flag:
+```{bash}
+grep -w "land" command-line-files/some_plays/king-lear.txt
+```
+We can also search in multiple files at once using the `-r` flag:
+```{bash}
+grep -rw "Quoth" command-line-files/some_plays
+```
+
+## Combining Commands
+One of the most powerful features of the command line is the ability to combine commands together to perform more complex tasks.
+We can do this using the following operators:
+    
+- `;` - separate commands
+- `&&` - execute second command if first command succeeds
+- `||` - execute second command if first command fails
+- `|` - pipe output of first command to input of second command
+- `>` - redirect output of command to file
+- `>>` - append output of command to file
+- `<` - redirect input of command from file
+- `<<` - redirect input of command from here document
+- `<<<` - redirect input of command from here string
+
+For example, we can run a `grep` command and then pipe the output to a `wc` command to count the number of lines and write that to a file called `numLines`:
+```{bash}
+grep -rw "yea" command-line-files/some_plays | wc -l > numLines
+cat numLines
+```
+
+<!-- ## Command Line Editors -->
+<!-- It is often useful to be able to edit files from the command line, and there are several editors available for this purpose including `vi`, `emacs`, and `nano` (the last of which is the simplest but also the least powerful of the three). -->
+
+<!-- ```{bash, echo=FALSE} -->
+<!-- rm -r example_directory_copy -->
+<!-- ``` -->
