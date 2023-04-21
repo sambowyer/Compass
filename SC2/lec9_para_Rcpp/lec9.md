@@ -1,0 +1,3 @@
+# Parallel Rcpp
+
+## With OpenMP
