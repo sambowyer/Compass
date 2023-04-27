@@ -1,0 +1,199 @@
+---
+title: "MCMC Part 1"
+author: "Sam Bowyer"
+date: "`r Sys.Date()`"
+output: pdf_document
+header-includes:
+  - \DeclareMathOperator*{\argmax}{argmax} % thin space, limits underneath in displays
+  - \DeclareMathOperator*{\argmin}{argmin}
+---
+
+```{r setup, include=FALSE}
+set.seed(1)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For this task we will be using the Pima Indians Diabetes dataset from the `R` package `mlbench`, containing $n=768$ input-output pairs $\{(y_i^0, x_i^0)\}_{i=1}^n$ with $y_i^0 \in \{0,1\}$ indicating whether patient $i$ has diabetes and $x_i^0 \in \mathbb{R}^p$ representing $p=8$ diagnostic measurements.
+```{r}
+library(mlbench)
+data(PimaIndiansDiabetes)
+head(PimaIndiansDiabetes)
+dim(PimaIndiansDiabetes)
+```
+
+First we will split up the data into inputs and outputs, and we will convert the $y_i^0$ types into zeroes and ones.
+```{r}
+p = ncol(PimaIndiansDiabetes)-1
+X = PimaIndiansDiabetes[,1:p]
+Y = as.numeric(PimaIndiansDiabetes[,p+1] == "pos")
+
+head(X); head(Y)
+dim(X); length(Y)
+```
+
+We'll be considering the logistic regression model
+\[Pr_{\alpha, \beta}^{(i)}(Y_i^0 = 1) = \frac{1}{1 + e^{-\alpha -\beta^T x_i^0}}, \;\; i = 1,...,n.\]
+
+Then with a prior distribution $\pi(\alpha, \beta)$ on $\mathbb{R}^{p+1}$ and a likelihood function
+\[L_n(\alpha, \beta) = \prod_{i=1}^n Pr_{\alpha, \beta}^{(i)}(Y_i^0 = y_i^0),\]
+
+we arrive at the posterior distribution over $(\alpha, \beta)$ given the data:
+\[\pi(\alpha, \beta | y^0) \propto L_n(\alpha, \beta) \pi(\alpha, \beta).\]
+
+First we'll implement functions to calculate the log prior and log likelihood. 
+In particular, we'll put standard Gaussian priors on our parameters $\alpha$ and $\beta$, so $(\alpha, \beta) \sim \mathcal{N}_{p+1}(\mathbf{0}, \mathbf{I}_{p+1})$.
+```{r}
+log_prior <- function(params){
+  return(sum(dnorm(params, log=TRUE)))
+}
+
+log_likelihood <- function(params){
+  logits = params[1] + params[-1] %*% t(X)
+  return(sum(Y*logits - log(1+exp(logits))))
+}
+
+log_posterior <- function(params){
+  return(log_prior(params) + log_likelihood(params))
+}
+```
+
+<!-- Note here that we've simplified the way calculation of the likelihood by combining the equations: -->
+<!-- \[Pr_{\alpha, \beta}^{(i)}(Y_i^0 = 1) = \frac{1}{1 + e^{-\alpha -\beta^T x_i^0}},\] -->
+<!-- \[Pr_{\alpha, \beta}^{(i)}(Y_i^0 = 0) = 1- \frac{1}{1 + e^{-\alpha -\beta^T x_i^0}},\] -->
+<!-- into a single equation -->
+<!-- \[Pr_{\alpha, \beta}^{(i)}(Y_i^0 = y_) = (1-Y_i^0) + \left(\frac{1}{1 + e^{-\alpha -\beta^T x_i^0}}\right)(2Y_i^0 - 1).\] -->
+
+
+Next we obtain our initial values for $\alpha$ and $\beta$ (note that we are referring to the vector $(\alpha, \beta) \in \mathbb{R}^{p+1}$ as `params` in the code).
+```{r}
+# initial params
+params0 = rnorm(p+1)
+params0
+```
+
+For our proposal distribution $Q$ we will use $Q(z, dz') = \mathcal{N}_{p+1}(z, c \Sigma_n)$ with a tuning parameter $c > 0$, where 
+\[\begin{aligned}
+\Sigma_n &= -(\mathbf{H}_n(\mu_n))^{-1} \\
+\mu_n &= \argmax_{(\alpha, \beta) \in \mathbb{R}^{p+1}} \log \pi(\alpha, \beta | y^0) \\
+\mathbf{H}_n(\theta) &= \left(\frac{\partial^2}{\partial\theta_l \partial \theta_l} \log \pi(\theta | y^0)\right)_{j,l=1}^{p+1}, \;\; \forall \theta \in \mathbb{R}^{p+1}.
+\end{aligned}\]
+
+We approximate $\mu_n$ using `optim` and calculate the Hessian $\mathbf{H}_n(\mu_n))$ using the `hessian` function from the package `pracma`.
+
+```{r}
+mu_n = optim(par = params0, function(x) -log_likelihood(x))$par
+
+library(pracma)
+Sigma_n = -solve(hessian(f=log_posterior, x=mu_n))
+
+library(mvtnorm)
+proposal <- function(c){
+  Q <- list()
+  Q$sample <- function(x){
+    rmvnorm(1, mean = x, sigma = c*Sigma_n)
+  }
+  Q$density <- function(x,y){
+    dmvnorm(y, mean = x, sigma = c*Sigma_n)
+  }
+  return(Q)
+}
+```
+
+Finally we may write our Metropolis-Hastings algorithm.
+```{r}
+runMH <- function(f, Q, x0, n){
+  q = Q$density
+  xs = matrix(rep(0, n*p+1), nrow=n)
+  x = x0
+  acceptanceCount = 0
+  for(i in 1:n){
+    z = Q$sample(x)
+    acceptProb = min(1, f(z)*q(z,x)/(f(x)*q(x,z)))
+    if(runif(1)<acceptProb){
+      x = z
+      acceptanceCount = acceptanceCount + 1
+    }
+    xs[i,] = x
+  }
+  return(list(samples = xs, acceptanceRate = acceptanceCount/n))
+}
+```
+
+First we use $c=1$ and obtain very good results after generating 100000 samples.
+```{r, warning=FALSE, cache=TRUE}
+n = 100000
+c = 1
+MH = runMH(function(x) exp(log_posterior(x)), proposal(c), mu_n, n)
+```
+
+In particular, we observe an acceptance rate of 0.19538, somewhat close to the theoretical optimal rate of 0.234.
+```{r}
+MH$acceptanceRate
+```
+
+Furthermore, looking at the trace plots for the generated samples we observe healthy looking convergence after a small amount of mixing time.
+```{r}
+var_names = c("alpha")
+for (i in 1:9){
+  var_names = c(var_names, paste("beta_", i))
+}
+
+par(mfrow=c(3,3))
+for (i in 1:9){
+  plot(1:n, MH$samples[,i], type="l", xlab="Sample No.", ylab=paste(var_names[i]))
+}
+```
+
+We also see autocorrelation plots that diminish fairly quickly towards 0.
+```{r}
+par(mfrow=c(3,3))
+for (i in 1:9){
+  acf(MH$samples[,i], lag.max=250, main="")
+  title(var_names[i])
+}
+```
+
+This culminates in acceptable-looking plots for estimated marginal posterior distributions for each of the model's nine parameters---each of which are unimodal and vaguely Gaussian.
+```{r}
+par(mfrow=c(3,3))
+for (i in 1:9){
+  plot(density(MH$samples[,i]), xlab="Sample No.", ylab=paste(var_names[i]), main="Marginal Density")
+}
+```
+
+For comparison against a badly-tuned chain, consider the results when we use $c=0.001$ (again with 100000 generated samples).
+
+```{r, warning=FALSE, cache=TRUE}
+c = 0.001
+MH = runMH(function(x) exp(log_posterior(x)), proposal(c), mu_n, n)
+```
+
+This gives an acceptance rate of 0.96417, far above the optimal value which suggests that the proposal is failing to capture the behaviour of the posterior.
+```{r}
+MH$acceptanceRate
+```
+
+Using these samples we see much worse convergence than before in the trace plots.
+```{r}
+par(mfrow=c(3,3))
+for (i in 1:9){
+  plot(1:n, MH$samples[,i], type="l", xlab="Sample No.", ylab=paste(var_names[i]))
+}
+```
+
+Similarly, the autocorrelation stays relatively large even as we increase the lag, further suggesting that the proposal isn't exploring the posterior space successfully.
+```{r}
+par(mfrow=c(3,3))
+for (i in 1:9){
+  acf(MH$samples[,i], lag.max=250, main="")
+  title(var_names[i])
+}
+```
+
+And finally when we plot the estimated marginal posterior distributions we see plots that looks a lot less Gaussian and unimodal.
+```{r}
+par(mfrow=c(3,3))
+for (i in 1:9){
+  plot(density(MH$samples[,i]), xlab="Sample No.", ylab=paste(var_names[i]), main="Marginal Density")
+}
+```
