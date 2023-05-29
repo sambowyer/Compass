@@ -1,5 +1,5 @@
 ---
-title: "Portfolio 1"
+title: "Portfolio 1 - C++"
 author: "Sam Bowyer"
 date: "`r Sys.Date()`"
 output: pdf_document
@@ -7,7 +7,7 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-setwd("~/Documents/Compass/SC2/lab1")
+setwd("~/Documents/Compass First Year/Compass/SC2/lab1_C")
 ```
 
 # Basic C++

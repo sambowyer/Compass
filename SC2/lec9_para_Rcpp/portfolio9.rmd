@@ -1,0 +1,34 @@
+---
+title: "Portfollio 9 - RcppParallel"
+author: "Sam Bowyer"
+date: "`r Sys.Date()`"
+output: pdf_document
+bibliography: SC2.bib
+header-includes: 
+  - \DeclareMathOperator*{\argmax}{argmax} % thin space, limits underneath in displays
+  - \DeclareMathOperator*{\argmin}{argmin}
+  - \bibliographystyle{plain}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Documents/Compass First Year/Compass/SC2/lec9_para_Rcpp")
+set.seed(0)
+```
+
+In this portofolio we will discuss how the `R`-to-`C++` gains obtained in regular `Rcpp` can be improved upon further by parallelisation with `RcppParallel`. In particular, we'll look into `parallelFor` and `parallelReduce`, using examples based on \cite{jj_allaire_parallel_2014} and \cite{jj_allaire_computing_2014} respectively.
+
+## parallelFor
+With `RcppParallel`, the `parallelFor` loop works by **************
+
+### Jensen-Shannon Distance
+
+## parallelReduce
+As discussed in Portfolio 7 on Intel TBB, another very useful function that can easily be parallelised is `reduce`, which is implemented in `RcppParallel` as `parallelReduce`. 
+This works by ***************
+
+### Inner Product
+
+
+
+\bibliography{SC2.bib}

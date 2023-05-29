@@ -1,5 +1,5 @@
 ---
-title: "Portfolio 5"
+title: "Portfolio 7 - Intel TBB"
 author: "Sam Bowyer"
 date: "`r Sys.Date()`"
 output: pdf_document
@@ -7,7 +7,7 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-setwd("~/Documents/Compass/SC2/lec5")
+setwd("~/Documents/Compass First Year/Compass/SC2/lec7_tbb")
 set.seed(0)
 ```
 
@@ -21,15 +21,15 @@ In particular, this portfolio will focus on the use of `map` and `reduce` operat
 
 ## Lambda functions
 
-Lambda functions are a new feature of C++11. They are a way of defining a function without giving it a name. They are very useful for defining simple functions that are only used once. For example, we can define a lambda function that adds two numbers together as follows:
+Lambda functions were introduced in C++11 and allow us to define a function without giving it a name. They are very useful for defining simple functions that are only used once, for example, we can define a lambda function that adds two numbers together as follows:
 
-```
+```cpp
 [](int x, int y) { return x + y; }
 ```
 
 This might be used in a larger program named `lambdaExample.cpp` as follows:
 
-```{c++}
+```cpp
 #include <iostream>
 
 int main(int argc, char **argv)
@@ -53,12 +53,22 @@ g++ -std=c++11 lambdaExample.cpp -o lambdaExample
 ./lambdaExample
 ```
 
+We can define the lambda function with different levels of closure based on what we put inside the `[]` brackets.
+In particular, we can put the following inside the `[]` brackets:
+
+* `&` - Capture all variables by reference
+* `=` - Capture all variables by value
+* `x` - Capture the variable `x` by value
+* `&x` - Capture the variable `x` by reference
+
+By default, if we do not specify anything inside the `[]` brackets then the lambda function will capture all variables by value.
+
 ## Map
-It is very common in parallel programming to want to apply a function to each element of a container. For example, we might want to apply a function to each element of a vector. This is known as a `map` operation. 
+It is very common in parallel programming to want to apply a function to each element of a container. For example, we might want to apply a function to each element of a vector. This is known as a `map` operation.
 
 We can write an example map implementation in C++ as follows:
 
-```{c++}
+```cpp
 #include <iostream>
 #include <vector>
 
@@ -90,6 +100,7 @@ int main(int argc, char **argv)
 }
 ```
 
+In this case, we are mapping over the vector $[1,2,3,4,5]$ and squaring each element.
 We can then compile and run this program as follows:
 
 ```{bash}
@@ -102,7 +113,7 @@ Reduce is another very common operation in parallel programming. It is used to c
 
 We can write an example reduce implementation in C++ as follows:
 
-```{c++}
+```cpp
 #include <iostream>
 #include <vector>
 
@@ -130,8 +141,10 @@ int main(int argc, char **argv)
     return 0;
 }
 ```
+Note that we not only have to supply our function `func` to reduce two items into one, but also an initial value `init`.
+It is important to consider your initial value carefully, for instance if `func` is addition we would probably want `init=0`, but if `func` is instead multiplication we would more likely want `init=1` (since 0 is the identity element for addition and 1 is the identity element for multiplication).
 
-This can then be compiled and run as follows:
+Compiling and running this program may be done as follows:
 
 ```{bash}
 g++ -std=c++11 reduceExample.cpp -o reduceExample
@@ -140,11 +153,11 @@ g++ -std=c++11 reduceExample.cpp -o reduceExample
 
 ## Parallel map and reduce
 
-A parallel implementation of `map` and `reduce` can be implemented using the TBB library. The TBB library provides a `parallel_for` function that can be used to parallelise a `for` loop. The `parallel_for` function takes a range of values to iterate over and a lambda function to apply to each value in the range. The lambda function is executed in parallel on multiple threads. The `parallel_for` function will wait until all the threads have finished executing the lambda function before returning.
+A parallel implementation of `map` and `reduce` can be implemented using the TBB library. TBB  provides a `parallel_for` function that can be used to parallelise a `for` loop, taking a `blocked_range` of values to iterate over (each block inside this range may contain more than one item, but generally it will be a small number of items per block) and a lambda function to apply to (each item inside) each block. The lambda function is executed in parallel on multiple threads: one thread per block. The `parallel_for` function will wait until all the threads have finished executing the lambda function before returning.
 
-In C++11, the `parallel_for` function can be used to implement a parallel `map` operation as follows:
+The `parallel_for` function can be used to implement a parallel `map` operation as follows (again we are using `map` to square each element in $[1,2,3,4,5]$):
 
-```{c++}
+```cpp
 #include <iostream>
 #include <vector>
 #include <tbb/parallel_for.h>
@@ -154,9 +167,12 @@ std::vector<T> map(const std::vector<T> &input, F func)
 {
     std::vector<T> output(input.size());
 
-    tbb::parallel_for(0, input.size(), [&](int i)
+    tbb::parallel_for(tbb::blocked_range<int>(0,input.size()), [&](tbb::blocked_range<int> r)
     {
-        output[i] = func(input[i]);
+        for (int i=r.begin(); i<r.end(); ++i)
+        {
+            output[i] = func(input[i]);
+        }
     });
 
     return output;
@@ -177,13 +193,122 @@ int main(int argc, char **argv)
 }
 ```
 
-This can then be compiled and run as follows:
+This can then be compiled and run as follows (note that we are including the flag `ltbb` to tell our compiler to use the TBB library, and also the `-O3` flag to optimize our code):
 
 ```{bash}
-g++ -std=c++11 -ltbb parallelMapExample.cpp -o parallelMapExample
+g++ --std=c++14 -O3 parallelMapExample.cpp -ltbb -o parallelMapExample
 ./parallelMapExample
 ```
 
-A parallel implementation of `reduce` can be implemented using the TBB library. (Note that the TBB library provides its own implementation of both `parallel_reduce` and `parallel_map`, however, we will implement our own here to better explain the core concepts of how the library, and parallelisation as a whole, works.  
+A parallel implementation of `reduce` is given in the TBB library: `parallel_reduce`.
+This has the form
+```
+tbb::parallel_reduce(
+    tbb::blocked_range r,
+    initial_value,
+    [](tbb::blocked_range<int> r, double running_total){OPERATIONS IN HERE},
+    reduce_function
+)
+```
+Here we again must provide a `blocked_range`, initial value and `reduce_function`, but as the third argument we also have to provide a function that defines what the program shoulod do for each chunk.
+To obtain a 'pure' reduce function that sums over a vector, we will set this lambda function to simply add the elements in each block and use the `std::plus<double>` function as our `reduce_function`.
+(We also use our `parallel_for` code to generate the vector of values that we're summing over.)
 
-The `parallel_reduce` function takes a range of values to iterate over, a lambda function to apply to each value in the range, and an initial value. The lambda function is executed in parallel on multiple threads. The `parallel_reduce` function will wait until all the threads have finished executing the lambda function before returning. The lambda function is also passed a reference to a variable that is used to store the result of the reduction. The lambda function should update this variable with the result of the reduction. The `parallel_reduce` function will then return the final value of this variable.
+```cpp
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
+
+int main(int argc, char **argv)
+{
+    auto values = std::vector<double>(10000);
+    
+    // Generate values to sum over
+    tbb::parallel_for( tbb::blocked_range<int>(0,values.size()),
+                       [&](tbb::blocked_range<int> r)
+    {
+        for (int i=r.begin(); i<r.end(); ++i)
+        {
+            values[i] = std::sin(i * 0.001);
+        }
+    });
+
+    // Sum the values using parallel_reduce
+    auto total = tbb::parallel_reduce( 
+                    tbb::blocked_range<int>(0,values.size()),
+                    0.0,
+                    [&](tbb::blocked_range<int> r, double running_total)
+                    {
+                        for (int i=r.begin(); i<r.end(); ++i)
+                        {
+                            running_total += values[i];
+                        }
+                        return running_total;
+                    }, std::plus<double>() );
+
+    std::cout << total << std::endl;
+
+    return 0;
+}
+```
+
+We compile and run this as follows:
+```{bash}
+g++ --std=c++14 -O3 parallelReduceExample.cpp -ltbb -o parallelReduceExample
+./parallelReduceExample
+```
+
+## Parallel Mapreduce
+It is often very useful to combine the `map` and `reduce` operations into a single operation: mapping a function over a collection and then reducing the output of that map operation using another function.
+This is known as a `mapreduce` operation and can be used to achieve the same result we got in the previous example by combining the value generation loop (with `parallel_for`) and the value summing loop (with `parallel_reduce`).
+
+Below we show a generic parallel `mapreduce` implementation using Intel-TBB's `parallel_for` and `parallel_reduce` functions, which takes in one function for mapping (here we use a lambda function to square each item), a function for reducing (we use `std::plus<int>`) and an array to `mapreduce` over (here, the vector $[1,2,3,4,5,6,7,8,9,10]$).
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
+
+template<class MAPFUNC, class REDFUNC>
+auto mapReduce(MAPFUNC mapfunc, REDFUNC redfunc, 
+               const std::vector<int> &arg1)
+{
+    return tbb::parallel_reduce(
+              tbb::blocked_range<int>(0,arg1.size()),
+              0,
+              [&](tbb::blocked_range<int> r, int running_total)
+              {
+                  for (int i=r.begin(); i<r.end(); ++i)
+                  {
+                      running_total = redfunc(running_total,
+                                              mapfunc(arg1[i]) );
+                  }
+
+                  return running_total;
+              }, redfunc );
+}
+
+int main(int argc, char **argv)
+{
+    auto a = std::vector<int>( { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 } );
+
+    auto result = mapReduce( [](int x){ return x * x; }, 
+                             std::plus<int>(), a );
+
+    std::cout << result << std::endl;
+
+    return 0;
+}
+```
+
+```{bash}
+g++ --std=c++14 -O3 parallelMapReduceExample.cpp -ltbb -o parallelMapReduceExample
+./parallelMapReduceExample
+```

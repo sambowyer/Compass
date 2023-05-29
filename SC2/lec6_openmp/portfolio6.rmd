@@ -1,5 +1,5 @@
 ---
-title: "Portfolio 6"
+title: "Portfolio 6 - OpenMP"
 author: "Sam Bowyer"
 date: "`r Sys.Date()`"
 output: pdf_document
@@ -7,7 +7,7 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-setwd("~/Documents/Compass/SC2/lec5")
+setwd("~/Documents/Compass First Year/Compass/SC2/lec6_openmp")
 set.seed(0)
 ```
 

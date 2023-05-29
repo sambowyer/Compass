@@ -7,7 +7,7 @@
 
 int main(int argc, char **argv)
 {
-    auto values = std::vector<double>(10000);
+    auto values = std::vector<double>(25);
     
     std::mutex m;
 

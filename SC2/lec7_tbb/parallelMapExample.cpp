@@ -7,9 +7,12 @@ std::vector<T> map(const std::vector<T> &input, F func)
 {
     std::vector<T> output(input.size());
 
-    tbb::parallel_for(0, input.size(), [&](int i)
+    tbb::parallel_for(tbb::blocked_range<int>(0,input.size()), [&](tbb::blocked_range<int> r)
     {
-        output[i] = func(input[i]);
+        for (int i=r.begin(); i<r.end(); ++i)
+        {
+            output[i] = func(input[i]);
+        }
     });
 
     return output;
